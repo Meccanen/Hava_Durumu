@@ -52,6 +52,9 @@ export interface HourlyForecast {
   weatherCode: number;
   pop: number; // yağış olasılığı (0-1)
   isDay: boolean;
+  humidity?: number;
+  pressure?: number;
+  windSpeed?: number; // m/s
 }
 
 export interface DailyForecast {
@@ -64,8 +67,9 @@ export interface DailyForecast {
 
 export interface WeatherBundle {
   current: CurrentWeather;
-  hourly: HourlyForecast[]; // önümüzdeki 48 saat
-  daily: DailyForecast[];   // önümüzdeki 7 gün (şu an ücretsiz katmanda 3 gün)
+  hourly: HourlyForecast[]; // önümüzdeki 24 saat (ana sayfa)
+  daily: DailyForecast[];   // günlük özet (şu an ücretsiz katmanda 3 gün)
+  dailyHourly: HourlyForecast[][]; // her gün için TAM 24 saatlik döküm (daily.length ile aynı sırada)
   airQuality: AirQuality | null;
   astronomy: Astronomy | null;
   alerts: WeatherAlert[];

@@ -567,14 +567,17 @@ export default function App() {
   // koşullu hale getirilecek.
   const [bannerHeight, setBannerHeight] = useState(0);
 
-  // ---- Ödüllü reklamla açılan detay ekranları (UV / Hava Kalitesi / Ay Evresi / Uyarı) ----
-  type DetailKind = "alert" | "uv" | "aq" | "moon";
+  // ---- Ödüllü reklamla açılan detay ekranları (UV / Hava Kalitesi / Ay Evresi / Uyarı / Gün) ----
+  type DetailKind = "alert" | "uv" | "aq" | "moon" | "day";
   const [detailModal, setDetailModal] = useState<DetailKind | null>(null);
-  const [unlockingDetail, setUnlockingDetail] = useState<DetailKind | null>(null);
+  const [detailDayIndex, setDetailDayIndex] = useState<number>(0);
+  const [unlockingDetail, setUnlockingDetail] = useState<string | null>(null);
 
-  const handleOpenDetail = async (kind: DetailKind) => {
+  const handleOpenDetail = async (kind: DetailKind, dayIndex?: number) => {
+    const unlockKey = kind === "day" ? `day-${dayIndex}` : kind;
+    if (dayIndex !== undefined) setDetailDayIndex(dayIndex);
     if (isRewardedUnlockedThisSession()) { setDetailModal(kind); return; }
-    setUnlockingDetail(kind);
+    setUnlockingDetail(unlockKey);
     const granted = await unlockWithRewardedInterstitial();
     setUnlockingDetail(null);
     if (granted) setDetailModal(kind);
@@ -969,8 +972,14 @@ export default function App() {
                 {weather.daily.map((d, i) => {
                   const m = getWeatherMapping(d.weatherCode, true);
                   return (
-                    <div key={i} className={`flex items-center justify-between px-4 py-3.5 text-sm ${th.cardHover} transition-colors`}>
-                      <span className={`w-20 shrink-0 font-medium ${i === 0 ? th.accent : th.textPrimary}`}>
+                    <button key={i} onClick={() => handleOpenDetail("day", i)} disabled={unlockingDetail !== null}
+                      className={`w-full flex items-center justify-between px-4 py-3.5 text-sm ${th.cardHover} transition-colors relative`}>
+                      {unlockingDetail === `day-${i}` && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                          <div className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${th.accent}`} />
+                        </div>
+                      )}
+                      <span className={`w-20 shrink-0 font-medium text-left ${i === 0 ? th.accent : th.textPrimary}`}>
                         {i === 0 ? t("wxToday", lang) : formatDay(d.dt)}
                       </span>
                       <div className="flex items-center gap-2 flex-1 justify-center">
@@ -984,7 +993,7 @@ export default function App() {
                         <span className={`mx-1 ${th.textMuted}`}>/</span>
                         <span className={th.textMuted}>{d.tempMin}°</span>
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -1029,13 +1038,14 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6"
           onClick={() => setDetailModal(null)}>
           <div onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-sm rounded-3xl border p-6 space-y-4 ${th.card}`}>
+            className={`w-full max-w-sm rounded-3xl border p-6 space-y-4 max-h-[80vh] overflow-y-auto ${th.card}`}>
             <div className="flex items-center justify-between">
               <h3 className={`font-semibold text-base ${th.textPrimary}`}>
                 {detailModal === "alert" && t("alertDetailTitle", lang)}
                 {detailModal === "uv" && t("uvIndex", lang)}
                 {detailModal === "aq" && t("airQuality", lang)}
                 {detailModal === "moon" && t("moonPhase", lang)}
+                {detailModal === "day" && (detailDayIndex === 0 ? t("wxToday", lang) : formatDay(weather.daily[detailDayIndex]?.dt ?? 0))}
               </h3>
               <button onClick={() => setDetailModal(null)} className={th.textMuted}>
                 <X size={20} />
@@ -1043,13 +1053,9 @@ export default function App() {
             </div>
 
             {detailModal === "alert" && weather.alerts[0] && (
-              <div className="space-y-2">
-                <p className={`text-sm font-bold ${th.textPrimary}`}>{weather.alerts[0].event}</p>
-                <p className={`text-sm ${th.textSecondary}`}>{weather.alerts[0].headline}</p>
-                {weather.alerts[0].effect && (
-                  <p className={`text-xs ${th.textSecondary}`}>{weather.alerts[0].effect}</p>
-                )}
-                <p className={`text-[11px] italic pt-1 ${th.textMuted}`}>{t("alertOriginalLangNote", lang)}</p>
+              <div className="flex items-center gap-3">
+                <AlertTriangle size={24} className="text-red-500 shrink-0" />
+                <p className={`text-sm font-semibold text-red-500`}>{t("alertGenericWarning", lang)}</p>
               </div>
             )}
 
@@ -1111,6 +1117,33 @@ export default function App() {
                     <span className={`font-semibold ${th.textPrimary}`}>{formatHour(weather.astronomy.moonset)}</span>
                   </div>
                 )}
+              </div>
+            )}
+
+            {detailModal === "day" && weather.dailyHourly[detailDayIndex] && (
+              <div className="space-y-1 -mx-2">
+                {weather.dailyHourly[detailDayIndex].map((h, idx) => {
+                  const m = getWeatherMapping(h.weatherCode, h.isDay);
+                  return (
+                    <div key={idx} className={`flex items-center gap-2 px-2 py-2 text-xs rounded-xl ${th.cardHover}`}>
+                      <span className={`w-11 shrink-0 font-medium ${th.textPrimary}`}>{formatHour(h.dt)}</span>
+                      <m.iconName size={16} className={`${m.colorClass} shrink-0`} />
+                      <span className={`w-9 shrink-0 text-right font-semibold ${th.textPrimary}`}>{h.temperature}°</span>
+                      <span className={`flex items-center gap-0.5 w-12 shrink-0 justify-end ${th.textMuted}`}>
+                        <Droplets size={11} />{h.humidity ?? "—"}%
+                      </span>
+                      <span className={`flex items-center gap-0.5 w-14 shrink-0 justify-end ${th.textMuted}`}>
+                        <Wind size={11} />{h.windSpeed ?? "—"}
+                      </span>
+                      <span className={`flex items-center gap-0.5 w-14 shrink-0 justify-end ${th.textMuted}`}>
+                        <Gauge size={11} />{h.pressure ?? "—"}
+                      </span>
+                      <span className={`flex items-center gap-0.5 flex-1 justify-end ${th.accent2}`}>
+                        {h.pop > 0.1 && <><Umbrella size={11} />{Math.round(h.pop * 100)}%</>}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
