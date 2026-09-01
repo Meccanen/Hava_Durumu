@@ -16,7 +16,7 @@ import {
  */
 const BASE_URL = "https://api.weatherapi.com/v1/forecast.json";
 const FORECAST_DAYS = 3; // Starter'a geçince: 7
-const HOURLY_WINDOW = 48;
+const HOURLY_WINDOW = 24; // Ana sayfa saatlik şeridi — sadece önümüzdeki 24 saat
 
 export class WeatherServiceError extends Error {
   constructor(message: string, public readonly code: "NETWORK" | "API_ERROR") {
@@ -168,6 +168,22 @@ export async function fetchWeatherBundle(
     pop: (d.day.daily_chance_of_rain ?? 0) / 100,
   }));
 
+  // Her gün için TAM 24 saatlik döküm (nem/basınç/rüzgar dahil) —
+  // "Günlük Tahmin" listesinde bir güne tıklayınca açılan detay ekranı için.
+  const dailyHourly: HourlyForecast[][] = data.forecast.forecastday.map((d: any) =>
+    d.hour.map((h: any) => ({
+      dt: toUnix(h.time),
+      temperature: Math.round(h.temp_c),
+      feelsLike: Math.round(h.feelslike_c),
+      weatherCode: toWmoCode(h.condition.code),
+      pop: (h.chance_of_rain ?? 0) / 100,
+      isDay: h.is_day === 1,
+      humidity: h.humidity,
+      pressure: Math.round(h.pressure_mb),
+      windSpeed: Math.round((h.wind_kph / 3.6) * 10) / 10,
+    }))
+  );
+
   const aq = data.current.air_quality;
   const airQuality: AirQuality | null = aq
     ? {
@@ -195,5 +211,5 @@ export async function fetchWeatherBundle(
     expiresTs: a.expires ? toUnix(a.expires.slice(0, 16)) : null,
   }));
 
-  return { current, hourly, daily, airQuality, astronomy, alerts, fetchedAt: Date.now() };
+  return { current, hourly, daily, dailyHourly, airQuality, astronomy, alerts, fetchedAt: Date.now() };
 }
