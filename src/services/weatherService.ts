@@ -95,8 +95,7 @@ function astroTimeToUnix(dateStr: string, time12h: string): number | null {
 
 export async function fetchWeatherBundle(
   latitude: number,
-  longitude: number,
-  lang: string = "tr"
+  longitude: number
 ): Promise<WeatherBundle> {
   const apiKey = import.meta.env.VITE_WEATHER_API_KEY;
   const params = new URLSearchParams({
@@ -105,7 +104,16 @@ export async function fetchWeatherBundle(
     days: String(FORECAST_DAYS),
     aqi: "yes",
     alerts: "yes",
-    lang,
+    // NOT: 'lang' parametresi BİLİNÇLİ OLARAK gönderilmiyor.
+    // WeatherAPI'nin 'lang' parametresi sadece condition.text alanını
+    // çevirir — o alanı biz hiç kullanmıyoruz (kendi WMO kod eşlemesi +
+    // kendi 5-dilli i18n sistemimiz var). Tek gerçek etkisi, hava
+    // uyarılarının (alerts.alert[].desc) çeviri katmanından geçmesiydi;
+    // kaynak kurum (ör. DWD/MeteoAlarm) o dilde çeviri sağlamadığında bu
+    // alan "?" placeholder karakterleriyle doluyordu (tr/ar/ur'da
+    // gözlemlendi). Parametreyi göndermeyince API varsayılan olarak
+    // İngilizce/kaynak dilde döner — bu alan zaten kullanıcıya
+    // alertLanguageNote ile "hangi dilde" olduğu belirtilerek gösteriliyor.
   });
 
   let res: Response;

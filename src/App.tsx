@@ -566,7 +566,7 @@ export default function App() {
   const loadWeather = async () => {
     setWeatherLoading(true); setWeatherError(null);
     try {
-      const bundle = await fetchWeatherBundle(location.latitude, location.longitude, lang);
+      const bundle = await fetchWeatherBundle(location.latitude, location.longitude);
       setWeather(bundle);
     } catch (e) {
       const msg = e instanceof WeatherServiceError ? e.message : t("wxError", lang);
@@ -1082,7 +1082,7 @@ export default function App() {
                     <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
                       {t("alertRawContentLabel", lang)}
                     </p>
-                    <p className={`text-sm whitespace-pre-line leading-relaxed ${th.textPrimary}`}>
+                    <p className={`text-base whitespace-pre-line leading-relaxed font-medium ${th.textPrimary}`}>
                       {weather.alerts[0].effect}
                     </p>
                     {weather.alerts[0].language && (
