@@ -16,6 +16,24 @@ import { showBannerAd, onBannerHeightChange, unlockWithRewardedInterstitial, isR
 import type { WeatherBundle } from "./types";
 
 /**
+ * th.card sınıfları (ör. "bg-slate-900/40") kart arka planlarında hafif/cam
+ * efekti için bilinçli olarak yarı saydam tutuluyor. Ama tam ekran bir
+ * modal/detay penceresinde bu saydamlık okunabilirliği düşürüyor. Bu yüzden
+ * modal arka planı için, th.bg'deki tema rengini (ör. "bg-[#020617]")
+ * çok daha opak bir rgba'ya çevirip inline style ile uyguluyoruz — th.card'ı
+ * (ve onu kullanan diğer tüm kartları) etkilemeden.
+ */
+function themeBgToOpaqueRgba(bgClass: string, alpha: number): string {
+  const match = bgClass.match(/#([0-9a-fA-F]{6})/);
+  if (!match) return `rgba(15, 23, 42, ${alpha})`; // güvenli varsayılan (slate-900)
+  const hex = match[1];
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
  * ============================================================================
  * TEMALAR — Meccanen Namaz Vakti'nden BİREBİR taşındı, hiç değiştirilmedi.
  * Aynı 16 tema, aynı renk paleti, aynı Tailwind sınıfları.
@@ -1038,7 +1056,8 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6"
           onClick={() => setDetailModal(null)}>
           <div onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-sm rounded-3xl border p-6 space-y-4 max-h-[80vh] overflow-y-auto ${th.card}`}>
+            style={{ backgroundColor: themeBgToOpaqueRgba(th.bg, 0.94) }}
+            className={`w-full max-w-sm rounded-3xl border p-6 space-y-4 max-h-[80vh] overflow-y-auto backdrop-blur-xl ${th.card.replace(/bg-\S+/g, "")}`}>
             <div className="flex items-center justify-between">
               <h3 className={`font-semibold text-base ${th.textPrimary}`}>
                 {detailModal === "alert" && t("alertDetailTitle", lang)}
@@ -1122,6 +1141,15 @@ export default function App() {
 
             {detailModal === "day" && weather.dailyHourly[detailDayIndex] && (
               <div className="space-y-1 -mx-2">
+                <div className={`flex items-center gap-2 px-2 pb-1.5 mb-1 border-b text-[10px] font-semibold uppercase tracking-wide ${th.header} ${th.textMuted}`}>
+                  <span className="w-11 shrink-0">{t("wxColHour", lang)}</span>
+                  <span className="w-4 shrink-0" />
+                  <span className="w-9 shrink-0 text-right">{t("wxColTemp", lang)}</span>
+                  <span className="w-12 shrink-0 text-right">{t("wxColHumidity", lang)}</span>
+                  <span className="w-14 shrink-0 text-right">{t("wxColWind", lang)}</span>
+                  <span className="w-14 shrink-0 text-right">{t("wxColPressure", lang)}</span>
+                  <span className="flex-1 text-right">{t("wxColRain", lang)}</span>
+                </div>
                 {weather.dailyHourly[detailDayIndex].map((h, idx) => {
                   const m = getWeatherMapping(h.weatherCode, h.isDay);
                   return (

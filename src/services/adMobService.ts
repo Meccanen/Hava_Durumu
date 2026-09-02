@@ -145,31 +145,40 @@ export function onBannerHeightChange(callback: (heightPx: number) => void): () =
 
 // ---- Ödüllü Geçiş Reklamı (Rewarded Interstitial) ----
 // Kullanım: UV/Hava Kalitesi/Ay Evresi/Hava Uyarısı gibi ekstra detay
-// ekranlarını açmadan önce. "Oturum başına 1" kuralı: kullanıcı bir kez
-// reklam izleyip ödülü kazandıktan sonra, uygulamayı kapatıp açana kadar
-// (aynı oturumda) tüm bu detay ekranları reklamsız açılır.
-let rewardedUnlockedThisSession = false;
+// ekranlarını açmadan önce. Kural: kullanıcı bir kez reklam izleyip ödülü
+// kazandıktan sonra, kilit 5 DAKİKA boyunca açık kalır — bu süre içinde
+// tüm bu detay ekranları reklamsız açılır. Süre dolunca (uygulama kapanmasa
+// bile) bir sonraki denemede tekrar reklam istenir.
+const REWARD_UNLOCK_DURATION_MS = 5 * 60 * 1000;
+let rewardedUnlockedAt: number | null = null;
 
-/** Bu oturumda zaten ödüllü reklam izlenip kilidin açılıp açılmadığını döner. */
+function isUnlockStillValid(): boolean {
+  return rewardedUnlockedAt !== null && Date.now() - rewardedUnlockedAt < REWARD_UNLOCK_DURATION_MS;
+}
+
+/** Kilidin şu an (5 dk penceresi içinde) açık olup olmadığını döner. */
 export function isRewardedUnlockedThisSession(): boolean {
-  return rewardedUnlockedThisSession;
+  return isUnlockStillValid();
 }
 
 /**
  * Detay ekranı açılmadan önce çağrılır.
- * - Oturumda zaten açılmışsa: hemen true döner, reklam göstermez.
+ * - Kilit hâlâ geçerliyse (son açılıştan itibaren 5 dk geçmediyse): hemen
+ *   true döner, reklam göstermez.
  * - Ad unit tanımlı değilse veya reklam herhangi bir sebeple
- *   yüklenemez/gösterilemezse: "fail-open" — içerik yine de açılır
- *   (kötü bir reklam doluluk oranı yüzünden kullanıcıyı özellikten tamamen
- *   mahrum bırakmamak tercih edildi; bu bilinçli bir ürün kararıdır).
- * - Kullanıcı reklamı ödül kazanmadan kapatırsa: false döner, içerik AÇILMAZ.
+ *   yüklenemez/gösterilemezse: "fail-open" — içerik yine de açılır, ama
+ *   kilit yine de 5 dk için işaretlenir (kötü bir reklam doluluk oranı
+ *   yüzünden kullanıcıyı özellikten tamamen mahrum bırakmamak tercih
+ *   edildi; bu bilinçli bir ürün kararıdır).
+ * - Kullanıcı reklamı ödül kazanmadan kapatırsa: false döner, içerik AÇILMAZ,
+ *   kilit süresi de başlamaz.
  */
 export async function unlockWithRewardedInterstitial(): Promise<boolean> {
-  if (rewardedUnlockedThisSession) return true;
+  if (isUnlockStillValid()) return true;
 
   if (!REWARDED_INTERSTITIAL_AD_UNIT_ID) {
     console.warn('[adMobService] VITE_ADMOB_REWARDED_INTERSTITIAL_ID tanımlı değil, kilit açık bırakılıyor.');
-    rewardedUnlockedThisSession = true;
+    rewardedUnlockedAt = Date.now();
     return true;
   }
 
@@ -188,7 +197,7 @@ export async function unlockWithRewardedInterstitial(): Promise<boolean> {
 
     handles.push(
       AdMob.addListener(RewardInterstitialAdPluginEvents.Rewarded, () => {
-        rewardedUnlockedThisSession = true;
+        rewardedUnlockedAt = Date.now();
         finish(true);
       })
     );
@@ -198,12 +207,14 @@ export async function unlockWithRewardedInterstitial(): Promise<boolean> {
     handles.push(
       AdMob.addListener(RewardInterstitialAdPluginEvents.FailedToLoad, (error) => {
         console.error('[adMobService] Ödüllü reklam yüklenemedi, kilit açık bırakılıyor:', error);
+        rewardedUnlockedAt = Date.now();
         finish(true); // fail-open
       })
     );
     handles.push(
       AdMob.addListener(RewardInterstitialAdPluginEvents.FailedToShow, (error) => {
         console.error('[adMobService] Ödüllü reklam gösterilemedi, kilit açık bırakılıyor:', error);
+        rewardedUnlockedAt = Date.now();
         finish(true); // fail-open
       })
     );
@@ -215,6 +226,7 @@ export async function unlockWithRewardedInterstitial(): Promise<boolean> {
         await AdMob.showRewardInterstitialAd();
       } catch (error) {
         console.error('[adMobService] Ödüllü reklam akışı hata verdi, kilit açık bırakılıyor:', error);
+        rewardedUnlockedAt = Date.now();
         finish(true); // fail-open
       }
     })();
