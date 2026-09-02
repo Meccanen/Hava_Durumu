@@ -208,6 +208,7 @@ export async function fetchWeatherBundle(
     event: a.event,
     severity: a.severity,
     effect: a.desc,
+    language: a.language || null,
     expiresTs: a.expires ? toUnix(a.expires.slice(0, 16)) : null,
   }));
 

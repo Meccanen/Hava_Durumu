@@ -1072,9 +1072,26 @@ export default function App() {
             </div>
 
             {detailModal === "alert" && weather.alerts[0] && (
-              <div className="flex items-center gap-3">
-                <AlertTriangle size={24} className="text-red-500 shrink-0" />
-                <p className={`text-sm font-semibold text-red-500`}>{t("alertGenericWarning", lang)}</p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle size={24} className="text-red-500 shrink-0" />
+                  <p className={`text-sm font-semibold text-red-500`}>{t("alertGenericWarning", lang)}</p>
+                </div>
+                {weather.alerts[0].effect && (
+                  <div className={`rounded-2xl border p-3.5 space-y-2 ${th.header}`}>
+                    <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
+                      {t("alertRawContentLabel", lang)}
+                    </p>
+                    <p className={`text-sm whitespace-pre-line leading-relaxed ${th.textPrimary}`}>
+                      {weather.alerts[0].effect}
+                    </p>
+                    {weather.alerts[0].language && (
+                      <p className={`text-[11px] italic pt-1 ${th.textMuted}`}>
+                        {t("alertLanguageNote", lang, { language: weather.alerts[0].language })}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1166,8 +1183,8 @@ export default function App() {
                       <span className={`flex items-center gap-0.5 w-14 shrink-0 justify-end ${th.textMuted}`}>
                         <Gauge size={11} />{h.pressure ?? "—"}
                       </span>
-                      <span className={`flex items-center gap-0.5 flex-1 justify-end ${th.accent2}`}>
-                        {h.pop > 0.1 && <><Umbrella size={11} />{Math.round(h.pop * 100)}%</>}
+                      <span className={`flex items-center gap-0.5 flex-1 justify-end ${h.pop > 0.1 ? th.accent2 : th.textMuted}`}>
+                        <Umbrella size={11} />{Math.round(h.pop * 100)}%
                       </span>
                     </div>
                   );
