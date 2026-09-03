@@ -65,7 +65,14 @@ jobs:
             echo "VITE_ADMOB_TEST_DEVICE_IDS=$ADMOB_TEST_DEVICE_IDS" >> .env
             echo ">>> Test cihaz ID'leri .env'e eklendi (değer loglanmadı)."
           fi
-      - name: "Web build al (DEBUG — ödüllü reklam bypass AÇIK)"
+      - name: "Web build al — ⚠️ ÖDÜLLÜ REKLAM BYPASS AÇIK (Debug APK + Release AAB ikisi de etkilenir)"
+        # ⚠️⚠️⚠️ CLOSED TEST AŞAMASI — tüm testerlar (Play Store closed test
+        # dahil) gerçek reklam yerine 2 sn bypass görsün diye BİLİNÇLİ olarak
+        # true. Bu tek web build'den hem Debug APK hem Release AAB üretiliyor,
+        # yani İKİSİ DE bypass'lı olacak.
+        #
+        # >>> PRODUCTION'A GEÇERKEN: aşağıdaki "true" değerini silin (satırı
+        #     tamamen kaldırın ya da "false" yapın) ve commit edin. <<<
         env:
           VITE_DEBUG_SKIP_REWARDED_AD: "true"
         run: npm run build
@@ -274,18 +281,6 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
-      - name: "Web build al (RELEASE — bypass KAPALI, normal reklam akışı)"
-        # NOT: VITE_DEBUG_SKIP_REWARDED_AD burada BİLİNÇLİ OLARAK set edilmiyor.
-        # GitHub Actions'ta bir step'in `env:` bloğu diğer step'lere sızmaz —
-        # yani bir önceki "Web build al (DEBUG...)" step'inde inline verilen
-        # bypass flag'i bu step'i hiçbir şekilde etkilemez. Vite bu değişkeni
-        # derleme anında statik olarak inline ettiği için (undefined === 'true'
-        # → false), üretilen dist/ zaten yapısal olarak bypass'sızdır; adı
-        # unutulup kaynağa hardcode edilmediği sürece Release'e sızma ihtimali
-        # yoktur.
-        run: npm run build
-      - name: Release web assets'ini Android projesine kopyala
-        run: npx cap copy android
       - name: Release AAB build et
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}

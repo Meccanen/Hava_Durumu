@@ -26,7 +26,7 @@ const BANNER_AD_UNIT_ID = import.meta.env.VITE_ADMOB_BANNER_ID;
 const REWARDED_INTERSTITIAL_AD_UNIT_ID = import.meta.env.VITE_ADMOB_REWARDED_INTERSTITIAL_ID;
 
 // ============================================================================
-// ⚠️  SADECE TEST/DEBUG İÇİN
+// ⚠️⚠️⚠️  ŞU AN AKTİF: CLOSED TEST AŞAMASI İÇİN BİLİNÇLİ OLARAK AÇIK  ⚠️⚠️⚠️
 // ============================================================================
 // true iken: ödüllü geçiş reklamı HİÇ ÇAĞRILMAZ (AdMob'a istek bile gitmez —
 // yanlışlıkla gerçek reklama tıklama/hesap riski sıfır). Kullanıcı butona
@@ -35,11 +35,16 @@ const REWARDED_INTERSTITIAL_AD_UNIT_ID = import.meta.env.VITE_ADMOB_REWARDED_INT
 // (bilinen AdMob/forum sorunu) geçici bir çözümdür.
 //
 // KAYNAK: derleme zamanında VITE_DEBUG_SKIP_REWARDED_AD ortam değişkeninden
-// gelir. .github/workflows/build-apk.yml'de bu değişken SADECE Debug APK
-// için yapılan web build'inde inline olarak set edilir; Release AAB'den önce
-// web assets flag'SİZ yeniden derlenip Android projesine kopyalanır — yani
-// Release build'e bu değişken hiçbir zaman ulaşmaz, kaynakta unutulsa bile
-// (bkz. workflow'daki "Guard" adımı, bunu ayrıca doğrular).
+// gelir — bkz. .github/workflows/build-apk.yml, "Web build al" step'i.
+//
+// ÖNEMLİ (bilinçli ürün kararı): Play Console Closed Test aşamasında olduğumuz
+// için bu flag'in HEM Debug APK HEM Release AAB'de açık olması isteniyor —
+// tüm testerlar gerçek reklam yerine bypass görsün diye, tek bir web build'den
+// ikisi de üretiliyor. Yani şu an production'a girene kadar AAB'de de bypass
+// AKTİF.
+//
+// >>> PRODUCTION'A (gerçek yayına) GEÇMEDEN ÖNCE: build-apk.yml'deki
+//     VITE_DEBUG_SKIP_REWARDED_AD: "true" satırını kaldırın/false yapın. <<<
 const DEBUG_SKIP_REWARDED_AD = import.meta.env.VITE_DEBUG_SKIP_REWARDED_AD === 'true';
 // ============================================================================
 
@@ -196,9 +201,10 @@ export async function unlockWithRewardedInterstitial(): Promise<boolean> {
 
   if (DEBUG_SKIP_REWARDED_AD) {
     console.warn(
-      '[adMobService] ⚠️ DEBUG_SKIP_REWARDED_AD=true — gerçek reklam ÇAĞRILMIYOR, ' +
-      '2 sn sonra kilit sanki izlenmiş gibi açılıyor. PRODUCTION\'A GİRMEDEN ÖNCE ' +
-      'src/services/adMobService.ts içindeki DEBUG_SKIP_REWARDED_AD sabitini false yapın!'
+      '[adMobService] ⚠️ DEBUG_SKIP_REWARDED_AD=true (Closed Test aşaması) — ' +
+      'gerçek reklam ÇAĞRILMIYOR, 2 sn sonra kilit sanki izlenmiş gibi açılıyor. ' +
+      'PRODUCTION\'A GEÇERKEN: .github/workflows/build-apk.yml içindeki ' +
+      'VITE_DEBUG_SKIP_REWARDED_AD: "true" satırını kaldırın/false yapın!'
     );
     await new Promise((resolve) => setTimeout(resolve, 2000));
     rewardedUnlockedAt = Date.now();
