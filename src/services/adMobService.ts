@@ -25,6 +25,24 @@ import {
 const BANNER_AD_UNIT_ID = import.meta.env.VITE_ADMOB_BANNER_ID;
 const REWARDED_INTERSTITIAL_AD_UNIT_ID = import.meta.env.VITE_ADMOB_REWARDED_INTERSTITIAL_ID;
 
+// ============================================================================
+// ⚠️  SADECE TEST/DEBUG İÇİN
+// ============================================================================
+// true iken: ödüllü geçiş reklamı HİÇ ÇAĞRILMAZ (AdMob'a istek bile gitmez —
+// yanlışlıkla gerçek reklama tıklama/hesap riski sıfır). Kullanıcı butona
+// bastığında 2 saniye beklenir, sonra kilit sanki reklam izlenmiş gibi açılır.
+// Bu, "gerçek ödüllü reklamları test cihazında engelleyemiyoruz" sorununa
+// (bilinen AdMob/forum sorunu) geçici bir çözümdür.
+//
+// KAYNAK: derleme zamanında VITE_DEBUG_SKIP_REWARDED_AD ortam değişkeninden
+// gelir. .github/workflows/build-apk.yml'de bu değişken SADECE Debug APK
+// için yapılan web build'inde inline olarak set edilir; Release AAB'den önce
+// web assets flag'SİZ yeniden derlenip Android projesine kopyalanır — yani
+// Release build'e bu değişken hiçbir zaman ulaşmaz, kaynakta unutulsa bile
+// (bkz. workflow'daki "Guard" adımı, bunu ayrıca doğrular).
+const DEBUG_SKIP_REWARDED_AD = import.meta.env.VITE_DEBUG_SKIP_REWARDED_AD === 'true';
+// ============================================================================
+
 // Virgülle ayrılmış test cihaz ID listesi (opsiyonel). Boşsa normal üretim
 // modunda çalışılır. Bir cihaz burada kayıtlıysa, o cihaza GERÇEK reklam
 // biriminden "test" olarak işaretlenmiş, tıklanması güvenli reklamlar gelir
@@ -175,6 +193,17 @@ export function isRewardedUnlockedThisSession(): boolean {
  */
 export async function unlockWithRewardedInterstitial(): Promise<boolean> {
   if (isUnlockStillValid()) return true;
+
+  if (DEBUG_SKIP_REWARDED_AD) {
+    console.warn(
+      '[adMobService] ⚠️ DEBUG_SKIP_REWARDED_AD=true — gerçek reklam ÇAĞRILMIYOR, ' +
+      '2 sn sonra kilit sanki izlenmiş gibi açılıyor. PRODUCTION\'A GİRMEDEN ÖNCE ' +
+      'src/services/adMobService.ts içindeki DEBUG_SKIP_REWARDED_AD sabitini false yapın!'
+    );
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    rewardedUnlockedAt = Date.now();
+    return true;
+  }
 
   if (!REWARDED_INTERSTITIAL_AD_UNIT_ID) {
     console.warn('[adMobService] VITE_ADMOB_REWARDED_INTERSTITIAL_ID tanımlı değil, kilit açık bırakılıyor.');

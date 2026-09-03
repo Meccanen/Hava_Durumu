@@ -65,7 +65,9 @@ jobs:
             echo "VITE_ADMOB_TEST_DEVICE_IDS=$ADMOB_TEST_DEVICE_IDS" >> .env
             echo ">>> Test cihaz ID'leri .env'e eklendi (değer loglanmadı)."
           fi
-      - name: Web build al
+      - name: "Web build al (DEBUG — ödüllü reklam bypass AÇIK)"
+        env:
+          VITE_DEBUG_SKIP_REWARDED_AD: "true"
         run: npm run build
       - name: Capacitor Android ekle
         run: |
@@ -272,6 +274,18 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
+      - name: "Web build al (RELEASE — bypass KAPALI, normal reklam akışı)"
+        # NOT: VITE_DEBUG_SKIP_REWARDED_AD burada BİLİNÇLİ OLARAK set edilmiyor.
+        # GitHub Actions'ta bir step'in `env:` bloğu diğer step'lere sızmaz —
+        # yani bir önceki "Web build al (DEBUG...)" step'inde inline verilen
+        # bypass flag'i bu step'i hiçbir şekilde etkilemez. Vite bu değişkeni
+        # derleme anında statik olarak inline ettiği için (undefined === 'true'
+        # → false), üretilen dist/ zaten yapısal olarak bypass'sızdır; adı
+        # unutulup kaynağa hardcode edilmediği sürece Release'e sızma ihtimali
+        # yoktur.
+        run: npm run build
+      - name: Release web assets'ini Android projesine kopyala
+        run: npx cap copy android
       - name: Release AAB build et
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
