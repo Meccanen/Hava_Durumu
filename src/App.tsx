@@ -34,6 +34,21 @@ function themeBgToOpaqueRgba(bgClass: string, alpha: number): string {
 }
 
 /**
+ * Hava uyarısı kaynağının (ör. DWD/MeteoAlarm) kendi encoding/çeviri
+ * pipeline'ı zaman zaman metni bozup yerine "?" placeholder karakterleri
+ * koyabiliyor — bu bizim istemcimizin kontrolünde değil (lang parametresini
+ * kaldırmamıza rağmen aralıklı olarak devam edebiliyor). Böyle bir metni
+ * olduğu gibi kullanıcıya göstermek yerine burada tespit edip nazik bir
+ * "şu an okunamıyor" mesajına düşüyoruz.
+ */
+function isLikelyCorruptedAlertText(text: string): boolean {
+  const meaningful = text.replace(/\s/g, "");
+  if (meaningful.length === 0) return true;
+  const questionMarks = (meaningful.match(/\?/g) ?? []).length;
+  return questionMarks / meaningful.length > 0.3;
+}
+
+/**
  * ============================================================================
  * TEMALAR — Meccanen Namaz Vakti'nden BİREBİR taşındı, hiç değiştirilmedi.
  * Aynı 16 tema, aynı renk paleti, aynı Tailwind sınıfları.
@@ -1082,13 +1097,21 @@ export default function App() {
                     <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
                       {t("alertRawContentLabel", lang)}
                     </p>
-                    <p className={`text-base whitespace-pre-line leading-relaxed font-medium ${th.textPrimary}`}>
-                      {weather.alerts[0].effect}
-                    </p>
-                    {weather.alerts[0].language && (
-                      <p className={`text-[11px] italic pt-1 ${th.textMuted}`}>
-                        {t("alertLanguageNote", lang, { language: weather.alerts[0].language })}
+                    {isLikelyCorruptedAlertText(weather.alerts[0].effect) ? (
+                      <p className={`text-sm italic leading-relaxed ${th.textMuted}`}>
+                        {t("alertRawUnavailable", lang)}
                       </p>
+                    ) : (
+                      <>
+                        <p className={`text-base whitespace-pre-line leading-relaxed font-medium ${th.textPrimary}`}>
+                          {weather.alerts[0].effect}
+                        </p>
+                        {weather.alerts[0].language && (
+                          <p className={`text-[11px] italic pt-1 ${th.textMuted}`}>
+                            {t("alertLanguageNote", lang, { language: weather.alerts[0].language })}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
