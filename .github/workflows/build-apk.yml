@@ -152,6 +152,26 @@ jobs:
               print(">>> AD_ID izni eklendi (AdMob için, açıkça belirtildi).")
           else:
               print(">>> AD_ID izni zaten mevcut, dokunulmadı.")
+
+          # Bildirim izinleri (Namaz Vakti'nin dersleri: eksik SCHEDULE_EXACT_ALARM
+          # zamanlanmış bildirimlerin sessizce hiç ateşlenmemesine sebep olabiliyor;
+          # POST_NOTIFICATIONS Android 13+ için zorunlu çalışma zamanı izni;
+          # RECEIVE_BOOT_COMPLETED, telefon yeniden başlatıldığında zamanlanmış
+          # bildirimlerin hayatta kalması için plugin tarafından kullanılıyor).
+          if "POST_NOTIFICATIONS" not in content:
+              notif_perms = (
+                  '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n'
+                  '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n'
+                  '    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />\n'
+                  '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n'
+                  '    <uses-permission android:name="android.permission.VIBRATE" />\n'
+              )
+              content = content.replace("</manifest>", notif_perms + "</manifest>")
+              with open(path, "w") as f:
+                  f.write(content)
+              print(">>> Bildirim izinleri eklendi.")
+          else:
+              print(">>> Bildirim izinleri zaten mevcut, dokunulmadı.")
           PYEOF
           python3 /tmp/add_perms.py
           echo "--- AndroidManifest.xml (izin eklendikten sonra) ---"
@@ -203,7 +223,7 @@ jobs:
         run: |
           pip install Pillow
           cat > /tmp/make_icons.py << 'PYEOF'
-          from PIL import Image
+          from PIL import Image, ImageDraw
           import os
 
           if not os.path.exists('public/meccanen-logo.png'):
@@ -239,6 +259,22 @@ jobs:
               img.save(out_path)
               print(f"OK {out_path}")
 
+          def make_notification_icon(size, out_path):
+              # Android bildirim küçük ikonu (smallIcon) SADECE alpha kanalını
+              # kullanır ve genelde 24dp gibi çok küçük boyutta gösterilir.
+              # Ana logo (robot+güneş+bulut, detaylı) bu boyutta anlaşılmaz bir
+              # lekeye dönüşüyor — test ettik. Onun yerine, hava durumu
+              # uygulamalarında standart olan sade/kalın bir BULUT silüeti
+              # doğrudan çiziyoruz; net ve her yoğunlukta tanınabilir.
+              img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+              d = ImageDraw.Draw(img)
+              white = (255, 255, 255, 255)
+              d.rounded_rectangle([size*0.12, size*0.46, size*0.88, size*0.76], radius=size*0.15, fill=white)
+              d.ellipse([size*0.22, size*0.26, size*0.58, size*0.62], fill=white)
+              d.ellipse([size*0.46, size*0.20, size*0.86, size*0.60], fill=white)
+              img.save(out_path)
+              print(f"OK {out_path}")
+
           base = 'android/app/src/main/res'
           for d, s in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
               os.makedirs(f'{base}/mipmap-{d}', exist_ok=True)
@@ -248,6 +284,11 @@ jobs:
           for d, s in [('mdpi',108),('hdpi',162),('xhdpi',216),('xxhdpi',324),('xxxhdpi',432)]:
               os.makedirs(f'{base}/mipmap-{d}', exist_ok=True)
               make_foreground(s, f'{base}/mipmap-{d}/ic_launcher_foreground.png')
+
+          # Bildirim küçük ikonu — standart Android yoğunluk boyutları (24dp taban)
+          for d, s in [('mdpi',24),('hdpi',36),('xhdpi',48),('xxhdpi',72),('xxxhdpi',96)]:
+              os.makedirs(f'{base}/drawable-{d}', exist_ok=True)
+              make_notification_icon(s, f'{base}/drawable-{d}/ic_stat_notify.png')
 
           bg_color_path = f'{base}/values/ic_launcher_background.xml'
           if os.path.exists(bg_color_path):

@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import {
   MapPin, Search, X, Settings, Palette, Check, Plus, Trash2,
   Navigation, Droplets, Wind, Umbrella, Gauge, Sunrise, Sunset,
-  ChevronsDown, CloudSun, Mail, Shield, SunMedium, Leaf, Moon, AlertTriangle,
+  ChevronsDown, CloudSun, Mail, Shield, SunMedium, Leaf, Moon, AlertTriangle, Bell,
 } from "lucide-react";
 import { Location } from "./types";
 export type FontScale = "normal" | "large" | "xlarge";
@@ -13,6 +13,10 @@ import { fetchWeatherBundle, WeatherServiceError } from "./services/weatherServi
 import { requestLocationPermission, getCurrentPosition } from "./utils/locationHelper";
 import { t, detectLanguage, LangCode } from "./utils/i18n";
 import { showBannerAd, onBannerHeightChange, unlockWithRewardedInterstitial, isRewardedUnlockedThisSession } from "./services/adMobService";
+import {
+  hasNotificationPermission, requestNotificationPermission,
+  scheduleDailySummaryNotification, cancelDailySummaryNotification,
+} from "./services/notificationService";
 import type { WeatherBundle } from "./types";
 
 /**
@@ -268,6 +272,9 @@ function SettingsPanel({
   onFindLocation, isDetectingLocation,
   autoLocationEnabled, onToggleAutoLocation,
   initialTab,
+  notifDailyEnabled, onToggleNotifDaily,
+  notifTime, onChangeNotifTime,
+  notifPermissionGranted,
 }: {
   theme: ThemeKey; setTheme: (k: ThemeKey) => void;
   location: Location; setLocation: (l: Location) => void;
@@ -276,9 +283,12 @@ function SettingsPanel({
   lang: LangCode; setLang: (l: LangCode) => void;
   onFindLocation: () => void; isDetectingLocation: boolean;
   autoLocationEnabled: boolean; onToggleAutoLocation: (val: boolean) => void;
-  initialTab?: "tema" | "konum" | "dil" | "hakkinda";
+  initialTab?: "tema" | "konum" | "dil" | "bildirim" | "hakkinda";
+  notifDailyEnabled: boolean; onToggleNotifDaily: (val: boolean) => void;
+  notifTime: string; onChangeNotifTime: (time: string) => void;
+  notifPermissionGranted: boolean;
 }) {
-  const [tab, setTab] = useState<"tema" | "konum" | "dil" | "hakkinda">(initialTab || "tema");
+  const [tab, setTab] = useState<"tema" | "konum" | "dil" | "bildirim" | "hakkinda">(initialTab || "tema");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Location[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -350,10 +360,10 @@ function SettingsPanel({
         </div>
 
         <div className={`flex border-b ${th.header} px-2`}>
-          {(["tema","konum","dil","hakkinda"] as const).map(tb => (
+          {(["tema","konum","dil","bildirim","hakkinda"] as const).map(tb => (
             <button key={tb} onClick={() => setTab(tb)}
-              className={`flex-1 py-3 text-sm font-medium transition ${tab === tb ? th.accent : th.textMuted}`}>
-              {tb === "tema" ? t("themeTab", lang) : tb === "konum" ? t("location", lang) : tb === "dil" ? t("language", lang) : t("about", lang)}
+              className={`flex-1 py-3 text-xs sm:text-sm font-medium transition ${tab === tb ? th.accent : th.textMuted}`}>
+              {tb === "tema" ? t("themeTab", lang) : tb === "konum" ? t("location", lang) : tb === "dil" ? t("language", lang) : tb === "bildirim" ? t("notifTab", lang) : t("about", lang)}
             </button>
           ))}
         </div>
@@ -477,6 +487,36 @@ function SettingsPanel({
             </div>
           )}
 
+          {tab === "bildirim" && (
+            <div className="space-y-4">
+              <div className={`flex items-center justify-between gap-3 px-3 py-3 rounded-xl border ${th.card}`}>
+                <div className="flex-1">
+                  <p className={`text-sm font-medium ${th.textPrimary}`}>{t("notifDailyToggleLabel", lang)}</p>
+                  <p className={`text-xs ${th.textMuted}`}>{t("notifDailyToggleDesc", lang)}</p>
+                </div>
+                <button
+                  role="switch" aria-checked={notifDailyEnabled}
+                  onClick={() => onToggleNotifDaily(!notifDailyEnabled)}
+                  className={`shrink-0 relative w-11 h-6 rounded-full transition-colors ${notifDailyEnabled ? th.accent + " bg-current" : "bg-black/20"}`}>
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${notifDailyEnabled ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+
+              {notifDailyEnabled && (
+                <div className={`flex items-center justify-between gap-3 px-3 py-3 rounded-xl border ${th.card}`}>
+                  <p className={`text-sm font-medium ${th.textPrimary}`}>{t("notifTimeLabel", lang)}</p>
+                  <input type="time" value={notifTime}
+                    onChange={(e) => onChangeNotifTime(e.target.value)}
+                    className={`px-3 py-1.5 rounded-lg border bg-transparent text-sm ${th.card} ${th.textPrimary} outline-none`} />
+                </div>
+              )}
+
+              {notifDailyEnabled && !notifPermissionGranted && (
+                <p className={`text-xs ${th.textMuted}`}>{t("notifPermissionDenied", lang)}</p>
+              )}
+            </div>
+          )}
+
           {tab === "hakkinda" && (
             <div className="space-y-5">
               <div className="text-center space-y-1">
@@ -563,7 +603,7 @@ export default function App() {
   const setSavedLocations = (locs: Location[]) => { setSavedLocationsState(locs); localStorage.setItem("mhd_saved_locations", JSON.stringify(locs)); };
 
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"tema"|"konum"|"dil"|"hakkinda">("tema");
+  const [settingsTab, setSettingsTab] = useState<"tema"|"konum"|"dil"|"bildirim"|"hakkinda">("tema");
 
   const [autoLocationEnabled, setAutoLocationEnabled] = useState(
     () => localStorage.getItem("mhd_auto_location") === "true"
@@ -702,6 +742,69 @@ export default function App() {
     setShowLocationPrompt(false);
     localStorage.setItem("mhd_location_prompted", "true");
   };
+
+  // ---- Bildirim tercihleri (konum promptuyla aynı desen) ----
+  const [notifDailyEnabled, setNotifDailyEnabledState] = useState(
+    () => localStorage.getItem("mhd_notif_daily_enabled") === "true"
+  );
+  const [notifTime, setNotifTimeState] = useState(
+    () => localStorage.getItem("mhd_notif_time") || "08:00"
+  );
+  const [notifPermissionGranted, setNotifPermissionGranted] = useState(false);
+  const [showNotifPrompt, setShowNotifPrompt] = useState(
+    () => !localStorage.getItem("mhd_notif_prompted")
+  );
+
+  useEffect(() => { hasNotificationPermission().then(setNotifPermissionGranted); }, []);
+
+  const parseNotifTime = (time: string): { hour: number; minute: number } => {
+    const [h, m] = time.split(":").map(Number);
+    return { hour: Number.isFinite(h) ? h : 8, minute: Number.isFinite(m) ? m : 0 };
+  };
+
+  const handleToggleNotifDaily = async (val: boolean) => {
+    if (val) {
+      const granted = await requestNotificationPermission();
+      setNotifPermissionGranted(granted);
+      if (!granted) return; // izin verilmezse toggle açık kalmaz
+      localStorage.setItem("mhd_notif_daily_enabled", "true");
+      setNotifDailyEnabledState(true);
+      const { hour, minute } = parseNotifTime(notifTime);
+      await scheduleDailySummaryNotification(hour, minute, t("notifScheduledTitle", lang), t("notifScheduledBody", lang));
+    } else {
+      localStorage.setItem("mhd_notif_daily_enabled", "false");
+      setNotifDailyEnabledState(false);
+      await cancelDailySummaryNotification();
+    }
+  };
+
+  const handleChangeNotifTime = async (time: string) => {
+    localStorage.setItem("mhd_notif_time", time);
+    setNotifTimeState(time);
+    if (notifDailyEnabled) {
+      const { hour, minute } = parseNotifTime(time);
+      await scheduleDailySummaryNotification(hour, minute, t("notifScheduledTitle", lang), t("notifScheduledBody", lang));
+    }
+  };
+
+  const handleNotifAllowed = async () => {
+    setShowNotifPrompt(false);
+    localStorage.setItem("mhd_notif_prompted", "true");
+    await handleToggleNotifDaily(true);
+  };
+
+  const handleNotifDenied = () => {
+    setShowNotifPrompt(false);
+    localStorage.setItem("mhd_notif_prompted", "true");
+  };
+
+  // Dil değişirse ve bildirim aktifse, zamanlanmış metni güncel dile göre tazele
+  useEffect(() => {
+    if (!notifDailyEnabled) return;
+    const { hour, minute } = parseNotifTime(notifTime);
+    scheduleDailySummaryNotification(hour, minute, t("notifScheduledTitle", lang), t("notifScheduledBody", lang));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
 
   // ---- Türetilmiş görünüm verisi ----
   const currentMapping = useMemo(
@@ -1054,6 +1157,25 @@ export default function App() {
         </div>
       )}
 
+      {!showLocationPrompt && showNotifPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+          <div className={`w-full max-w-sm rounded-3xl border p-6 text-center space-y-4 ${th.settingsCard}`}>
+            <Bell size={32} className={`mx-auto ${th.accent}`} />
+            <h3 className="font-semibold">{t("notifOnboardTitle", lang)}</h3>
+            <p className={`text-sm ${th.textSecondary}`}>{t("notifOnboardBody", lang)}</p>
+            <div className="flex gap-2">
+              <button onClick={handleNotifDenied} className={`flex-1 py-2.5 rounded-xl border text-sm ${th.card} ${th.textMuted}`}>
+                {t("notifOnboardLater", lang)}
+              </button>
+              <button onClick={handleNotifAllowed}
+                className={`flex-1 py-2.5 rounded-xl border text-sm font-medium ${th.card} ${th.accent}`}>
+                {t("notifOnboardAllow", lang)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showSettings && (
         <SettingsPanel
           theme={themeKey} setTheme={setTheme}
@@ -1064,6 +1186,9 @@ export default function App() {
           onFindLocation={handleFindLocation} isDetectingLocation={isDetectingLocation}
           autoLocationEnabled={autoLocationEnabled} onToggleAutoLocation={handleToggleAutoLocation}
           initialTab={settingsTab}
+          notifDailyEnabled={notifDailyEnabled} onToggleNotifDaily={handleToggleNotifDaily}
+          notifTime={notifTime} onChangeNotifTime={handleChangeNotifTime}
+          notifPermissionGranted={notifPermissionGranted}
         />
       )}
 
