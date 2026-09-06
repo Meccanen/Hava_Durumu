@@ -72,10 +72,37 @@ function findHourlyForTargetTime(hourly: WeatherBundle["hourly"], targetHour: nu
 }
 
 /**
+ * Sıcaklığı, sayı vermeden, "hissedilen" bir kategoriye çevirir. Bildirim
+ * içeriğinde kesin derece göstermiyoruz çünkü sıcaklık saat saat değişiyor —
+ * kullanıcı bildirime baktığında o kesin rakam çoktan geçersiz olabiliyor.
+ */
+function getTempFeelKey(temp: number): string {
+  if (temp <= 0) return "notifFeelFreezing";
+  if (temp <= 8) return "notifFeelCold";
+  if (temp <= 15) return "notifFeelCool";
+  if (temp <= 22) return "notifFeelMild";
+  if (temp <= 29) return "notifFeelWarm";
+  return "notifFeelHot";
+}
+
+/** WMO kodunu geniş bir kategoriye indirger, pratik/ilgi çekici bir öneri cümlesi için. */
+function getConditionTipKey(weatherCode: number): string {
+  if (weatherCode === 0 || weatherCode === 1) return "notifTipClear";
+  if (weatherCode === 2 || weatherCode === 3) return "notifTipCloudy";
+  if (weatherCode === 45 || weatherCode === 48) return "notifTipFog";
+  if ([51, 53, 55, 56, 57].includes(weatherCode)) return "notifTipDrizzle";
+  if ([61, 63, 65, 80, 81, 82].includes(weatherCode)) return "notifTipRain";
+  if ([66, 67, 71, 73, 75, 77, 85, 86].includes(weatherCode)) return "notifTipSnow";
+  if ([95, 96, 99].includes(weatherCode)) return "notifTipStorm";
+  return "notifTipCloudy"; // güvenli/nötr varsayılan
+}
+
+/**
  * Zamanlanmış günlük bildirimin başlık/metnini üretir. Elde güncel hava
- * verisi varsa gerçek sıcaklık/açıklama/yağış bilgisiyle, yoksa (ör. henüz
- * ilk fetch tamamlanmadıysa) klişe olmayan genel bir metinle döner —
- * bildirim asla boş/anlamsız içerikle kurulmasın diye.
+ * verisi varsa "hissedilen sıcaklık kategorisi + pratik öneri" şeklinde
+ * ilgi çekici ve rakamsız bir metinle (ör. "Bugün hava serin. Gökyüzü
+ * biraz kapalı görünüyor."), yoksa (ör. henüz ilk fetch tamamlanmadıysa)
+ * klişe olmayan genel bir metinle döner.
  */
 function buildNotificationContent(
   weather: WeatherBundle | null,
@@ -89,12 +116,9 @@ function buildNotificationContent(
   const hourData = findHourlyForTargetTime(weather.hourly, Number.isFinite(hh) ? hh : 8);
   if (!hourData) return { title, body: t("notifScheduledBody", lang) };
 
-  const mapping = getWeatherMapping(hourData.weatherCode, hourData.isDay);
-  const desc = t(mapping.descKey, lang);
-  const temp = Math.round(hourData.temperature);
-  const popPct = Math.round(hourData.pop * 100);
-  const rainPart = popPct >= 20 ? ` · ${t("wxColRain", lang)} %${popPct}` : "";
-  return { title, body: `${temp}° · ${desc}${rainPart}` };
+  const feel = t(getTempFeelKey(hourData.temperature), lang);
+  const tip = t(getConditionTipKey(hourData.weatherCode), lang);
+  return { title, body: `${feel} ${tip}` };
 }
 
 /**
