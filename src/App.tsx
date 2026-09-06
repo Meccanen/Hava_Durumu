@@ -53,6 +53,51 @@ function isLikelyCorruptedAlertText(text: string): boolean {
 }
 
 /**
+ * Kullanıcının bildirim için seçtiği saate ("HH:MM") en yakın saatlik
+ * tahmini `weather.hourly` içinden bulur. `dt` unix timestamp'i cihazın
+ * kendi yerel saatine göre yorumlanır (Date.getHours() cihaz saat dilimini
+ * kullanır) — bu, "seçtiğim saat = telefonumun gösterdiği saat" beklentisiyle
+ * örtüşüyor (konum cihazın kendi saat diliminde ise doğru sonucu verir).
+ */
+function findHourlyForTargetTime(hourly: WeatherBundle["hourly"], targetHour: number) {
+  if (!hourly || hourly.length === 0) return null;
+  let best = hourly[0];
+  let bestDiff = Infinity;
+  for (const h of hourly) {
+    const localHour = new Date(h.dt * 1000).getHours();
+    const diff = Math.abs(localHour - targetHour);
+    if (diff < bestDiff) { bestDiff = diff; best = h; }
+  }
+  return best;
+}
+
+/**
+ * Zamanlanmış günlük bildirimin başlık/metnini üretir. Elde güncel hava
+ * verisi varsa gerçek sıcaklık/açıklama/yağış bilgisiyle, yoksa (ör. henüz
+ * ilk fetch tamamlanmadıysa) klişe olmayan genel bir metinle döner —
+ * bildirim asla boş/anlamsız içerikle kurulmasın diye.
+ */
+function buildNotificationContent(
+  weather: WeatherBundle | null,
+  timeStr: string,
+  lang: LangCode
+): { title: string; body: string } {
+  const title = t("notifScheduledTitle", lang);
+  if (!weather) return { title, body: t("notifScheduledBody", lang) };
+
+  const [hh] = timeStr.split(":").map(Number);
+  const hourData = findHourlyForTargetTime(weather.hourly, Number.isFinite(hh) ? hh : 8);
+  if (!hourData) return { title, body: t("notifScheduledBody", lang) };
+
+  const mapping = getWeatherMapping(hourData.weatherCode, hourData.isDay);
+  const desc = t(mapping.descKey, lang);
+  const temp = Math.round(hourData.temperature);
+  const popPct = Math.round(hourData.pop * 100);
+  const rainPart = popPct >= 20 ? ` · ${t("wxColRain", lang)} %${popPct}` : "";
+  return { title, body: `${temp}° · ${desc}${rainPart}` };
+}
+
+/**
  * ============================================================================
  * TEMALAR — Meccanen Namaz Vakti'nden BİREBİR taşındı, hiç değiştirilmedi.
  * Aynı 16 tema, aynı renk paleti, aynı Tailwind sınıfları.
@@ -770,7 +815,8 @@ export default function App() {
       localStorage.setItem("mhd_notif_daily_enabled", "true");
       setNotifDailyEnabledState(true);
       const { hour, minute } = parseNotifTime(notifTime);
-      await scheduleDailySummaryNotification(hour, minute, t("notifScheduledTitle", lang), t("notifScheduledBody", lang));
+      const { title, body } = buildNotificationContent(weather, notifTime, lang);
+      await scheduleDailySummaryNotification(hour, minute, title, body);
     } else {
       localStorage.setItem("mhd_notif_daily_enabled", "false");
       setNotifDailyEnabledState(false);
@@ -783,7 +829,8 @@ export default function App() {
     setNotifTimeState(time);
     if (notifDailyEnabled) {
       const { hour, minute } = parseNotifTime(time);
-      await scheduleDailySummaryNotification(hour, minute, t("notifScheduledTitle", lang), t("notifScheduledBody", lang));
+      const { title, body } = buildNotificationContent(weather, time, lang);
+      await scheduleDailySummaryNotification(hour, minute, title, body);
     }
   };
 
@@ -802,9 +849,24 @@ export default function App() {
   useEffect(() => {
     if (!notifDailyEnabled) return;
     const { hour, minute } = parseNotifTime(notifTime);
-    scheduleDailySummaryNotification(hour, minute, t("notifScheduledTitle", lang), t("notifScheduledBody", lang));
+    const { title, body } = buildNotificationContent(weather, notifTime, lang);
+    scheduleDailySummaryNotification(hour, minute, title, body);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang]);
+
+  // Hava verisi her yenilendiğinde (uygulama her açıldığında/konum
+  // değiştiğinde) ve bildirim aktifse, tetiklenme zamanı ile "repeats: true"
+  // AYNI KALARAK sadece İÇERİĞİ (sıcaklık/açıklama/yağış) canlı veriyle
+  // üzerine yazılır. Böylece bildirim her gün kesin tetiklenir (native
+  // repeating alarm), içeriği ise en son uygulamanın açıldığı ana kadar
+  // günceldir — VPS/n8n devreye girene kadarki en iyi çaba çözümü.
+  useEffect(() => {
+    if (!weather || !notifDailyEnabled) return;
+    const { hour, minute } = parseNotifTime(notifTime);
+    const { title, body } = buildNotificationContent(weather, notifTime, lang);
+    scheduleDailySummaryNotification(hour, minute, title, body);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weather]);
 
   // ---- Türetilmiş görünüm verisi ----
   const currentMapping = useMemo(

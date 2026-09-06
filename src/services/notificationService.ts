@@ -15,10 +15,16 @@ import { LocalNotifications } from '@capacitor/local-notifications';
  * - Sabit bildirim ID'si kullanıyoruz (çoklama/yığılma olmasın diye) —
  *   Namaz Vakti'nin "6 sabit ID" pratiğiyle aynı mantık.
  *
- * Şu an SADECE tek bir "günlük özet" bildirimi destekleniyor (sabit
- * saatte, sabit/klişe olmayan metinle tekrarlayan yerel bildirim). Sunucu
- * taraflı "ani hava değişikliği" push bildirimi (VPS/n8n + FCM) ayrı ve
- * daha sonraki bir adım — bu dosyanın kapsamında değil.
+ * Şu an SADECE tek bir "günlük özet" bildirimi destekleniyor: sabit saatte
+ * her gün TETİKLENMESİ garanti (native repeating alarm — Namaz Vakti'nin
+ * kanıtlanmış deseni), ama İÇERİĞİ (sıcaklık/açıklama/yağış) App.tsx
+ * tarafında her hava verisi yenilendiğinde (uygulama her açıldığında) canlı
+ * veriyle üzerine yazılıyor — aynı ID ile tekrar schedule() çağrısı, bir
+ * sonraki tetiklenmede kullanılacak metni günceller. Yani içerik en son ne
+ * zaman uygulama açıldıysa o kadar taze olur; VPS/n8n devreye girene kadarki
+ * geçici/en-iyi-çaba çözüm bu. Sunucu taraflı "ani hava değişikliği" push
+ * bildirimi (VPS/n8n + FCM) ayrı ve daha sonraki bir adım — bu dosyanın
+ * kapsamında değil.
  */
 
 const DAILY_SUMMARY_NOTIFICATION_ID = 9001;
