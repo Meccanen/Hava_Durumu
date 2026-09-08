@@ -16,8 +16,9 @@ import { showBannerAd, onBannerHeightChange, unlockWithRewardedInterstitial, isR
 import {
   hasNotificationPermission, requestNotificationPermission,
   scheduleDailySummaryNotification, cancelDailySummaryNotification,
+  fireChangeAlertNotification,
 } from "./services/notificationService";
-import type { WeatherBundle } from "./types";
+import type { WeatherBundle, HourlyForecast } from "./types";
 
 /**
  * th.card sınıfları (ör. "bg-slate-900/40") kart arka planlarında hafif/cam
@@ -119,6 +120,67 @@ function buildNotificationContent(
   const feel = t(getTempFeelKey(hourData.temperature), lang);
   const tip = t(getConditionTipKey(hourData.weatherCode), lang);
   return { title, body: `${feel} ${tip}` };
+}
+
+const CHANGE_ALERT_TEMP_THRESHOLD = 5.5; // °C — kullanıcı isteği: "5-6 derece"
+const CHANGE_ALERT_POP_THRESHOLD = 0.35; // yağış olasılığında 35 puanlık fark
+
+/**
+ * Günün kalan saatlerinde (baseline = şu ana en yakın saat, sonraki 9 saat
+ * taranır) sıcaklık veya yağış ihtimalinde önemli bir sıçrama olup
+ * olmadığını tespit eder. Geriye dönük değil — tamamen ileriye dönük: "bugün
+ * ilerleyen saatlerde böyle bir değişiklik olacak" tespiti, sürekli arka
+ * plan izleme gerektirmez, sadece o an elde olan tahmine bakar.
+ *
+ * `dedupeKey`, aynı sıçramanın (aynı gün + aynı hedef saat + aynı yön için)
+ * tekrar tekrar bildirim göndermesini önlemek için kullanılıyor.
+ */
+function detectSignificantChange(
+  weather: WeatherBundle,
+  lang: LangCode
+): { dedupeKey: string; title: string; body: string } | null {
+  const hourly = weather.hourly;
+  if (!hourly || hourly.length < 2) return null;
+
+  const baseline = hourly[0];
+  const candidates = hourly.slice(1, 10); // sonraki ~9 saat
+
+  let best: { hour: HourlyForecast; kind: "warmer" | "cooler" | "rainUp" | "rainDown"; severity: number } | null = null;
+
+  for (const h of candidates) {
+    const tempDiff = h.temperature - baseline.temperature;
+    const popDiff = h.pop - baseline.pop;
+
+    if (Math.abs(tempDiff) >= CHANGE_ALERT_TEMP_THRESHOLD) {
+      const severity = Math.abs(tempDiff) / CHANGE_ALERT_TEMP_THRESHOLD;
+      if (!best || severity > best.severity) {
+        best = { hour: h, kind: tempDiff > 0 ? "warmer" : "cooler", severity };
+      }
+    }
+    if (Math.abs(popDiff) >= CHANGE_ALERT_POP_THRESHOLD) {
+      const severity = Math.abs(popDiff) / CHANGE_ALERT_POP_THRESHOLD;
+      if (!best || severity > best.severity) {
+        best = { hour: h, kind: popDiff > 0 ? "rainUp" : "rainDown", severity };
+      }
+    }
+  }
+
+  if (!best) return null;
+
+  const titleKey =
+    best.kind === "warmer" ? "notifChangeTitleWarmer" :
+    best.kind === "cooler" ? "notifChangeTitleCooler" :
+    best.kind === "rainUp" ? "notifChangeTitleRainUp" : "notifChangeTitleRainDown";
+
+  const feel = t(getTempFeelKey(best.hour.temperature), lang);
+  const tip = t(getConditionTipKey(best.hour.weatherCode), lang);
+  const dayKey = new Date().toDateString();
+
+  return {
+    dedupeKey: `${dayKey}:${best.hour.dt}:${best.kind}`,
+    title: t(titleKey, lang),
+    body: `${feel} ${tip}`,
+  };
 }
 
 /**
@@ -344,6 +406,7 @@ function SettingsPanel({
   notifDailyEnabled, onToggleNotifDaily,
   notifTime, onChangeNotifTime,
   notifPermissionGranted,
+  notifChangeAlertEnabled, onToggleChangeAlert,
 }: {
   theme: ThemeKey; setTheme: (k: ThemeKey) => void;
   location: Location; setLocation: (l: Location) => void;
@@ -356,6 +419,7 @@ function SettingsPanel({
   notifDailyEnabled: boolean; onToggleNotifDaily: (val: boolean) => void;
   notifTime: string; onChangeNotifTime: (time: string) => void;
   notifPermissionGranted: boolean;
+  notifChangeAlertEnabled: boolean; onToggleChangeAlert: (val: boolean) => void;
 }) {
   const [tab, setTab] = useState<"tema" | "konum" | "dil" | "bildirim" | "hakkinda">(initialTab || "tema");
   const [searchQuery, setSearchQuery] = useState("");
@@ -583,6 +647,19 @@ function SettingsPanel({
               {notifDailyEnabled && !notifPermissionGranted && (
                 <p className={`text-xs ${th.textMuted}`}>{t("notifPermissionDenied", lang)}</p>
               )}
+
+              <div className={`flex items-center justify-between gap-3 px-3 py-3 rounded-xl border ${th.card}`}>
+                <div className="flex-1">
+                  <p className={`text-sm font-medium ${th.textPrimary}`}>{t("notifChangeToggleLabel", lang)}</p>
+                  <p className={`text-xs ${th.textMuted}`}>{t("notifChangeToggleDesc", lang)}</p>
+                </div>
+                <button
+                  role="switch" aria-checked={notifChangeAlertEnabled}
+                  onClick={() => onToggleChangeAlert(!notifChangeAlertEnabled)}
+                  className={`shrink-0 relative w-11 h-6 rounded-full transition-colors ${notifChangeAlertEnabled ? th.accent + " bg-current" : "bg-black/20"}`}>
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${notifChangeAlertEnabled ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
             </div>
           )}
 
@@ -889,6 +966,35 @@ export default function App() {
     const { hour, minute } = parseNotifTime(notifTime);
     const { title, body } = buildNotificationContent(weather, notifTime, lang);
     scheduleDailySummaryNotification(hour, minute, title, body);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weather]);
+
+  // ---- Ani değişim uyarısı (ileriye dönük, app-open tetiklemeli) ----
+  const [notifChangeAlertEnabled, setNotifChangeAlertEnabledState] = useState(
+    () => localStorage.getItem("mhd_notif_change_enabled") === "true"
+  );
+
+  const handleToggleChangeAlert = async (val: boolean) => {
+    if (val) {
+      const granted = await requestNotificationPermission();
+      setNotifPermissionGranted(granted);
+      if (!granted) return;
+    }
+    localStorage.setItem("mhd_notif_change_enabled", val ? "true" : "false");
+    setNotifChangeAlertEnabledState(val);
+  };
+
+  // Hava verisi her yenilendiğinde, aktifse günün kalan saatlerinde önemli
+  // bir sıçrama var mı diye bakılır; varsa ve bugün bu spesifik sıçrama için
+  // daha önce uyarılmadıysa HEMEN (zamanlanmadan) bir bildirim gösterilir.
+  useEffect(() => {
+    if (!weather || !notifChangeAlertEnabled) return;
+    const change = detectSignificantChange(weather, lang);
+    if (!change) return;
+    const lastKey = localStorage.getItem("mhd_last_change_alert_key");
+    if (lastKey === change.dedupeKey) return; // bu sıçrama için zaten uyarıldı
+    localStorage.setItem("mhd_last_change_alert_key", change.dedupeKey);
+    fireChangeAlertNotification(change.title, change.body);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weather]);
 
@@ -1275,6 +1381,7 @@ export default function App() {
           notifDailyEnabled={notifDailyEnabled} onToggleNotifDaily={handleToggleNotifDaily}
           notifTime={notifTime} onChangeNotifTime={handleChangeNotifTime}
           notifPermissionGranted={notifPermissionGranted}
+          notifChangeAlertEnabled={notifChangeAlertEnabled} onToggleChangeAlert={handleToggleChangeAlert}
         />
       )}
 
