@@ -4,6 +4,7 @@ import {
   MapPin, Search, X, Settings, Palette, Check, Plus, Trash2,
   Navigation, Droplets, Wind, Umbrella, Gauge, Sunrise, Sunset,
   ChevronsDown, CloudSun, Mail, Shield, SunMedium, Leaf, Moon, AlertTriangle, Bell,
+  Globe, Info,
 } from "lucide-react";
 import { Location } from "./types";
 export type FontScale = "normal" | "large" | "xlarge";
@@ -492,13 +493,19 @@ function SettingsPanel({
           <button onClick={onClose} className={`p-2 rounded-full ${th.cardHover} ${th.textSecondary}`}><X size={18}/></button>
         </div>
 
-        <div className={`flex border-b ${th.header} px-2`}>
-          {(["tema","konum","dil","bildirim","hakkinda"] as const).map(tb => (
-            <button key={tb} onClick={() => setTab(tb)}
-              className={`flex-1 py-3 text-xs sm:text-sm font-medium transition ${tab === tb ? th.accent : th.textMuted}`}>
-              {tb === "tema" ? t("themeTab", lang) : tb === "konum" ? t("location", lang) : tb === "dil" ? t("language", lang) : tb === "bildirim" ? t("notifTab", lang) : t("about", lang)}
-            </button>
-          ))}
+        <div className={`flex gap-2 overflow-x-auto scrollbar-hide px-3 py-3 border-b ${th.header}`}>
+          {(["tema","konum","dil","bildirim","hakkinda"] as const).map(tb => {
+            const TabIcon = tb === "tema" ? Palette : tb === "konum" ? MapPin : tb === "dil" ? Globe : tb === "bildirim" ? Bell : Info;
+            const label = tb === "tema" ? t("themeTab", lang) : tb === "konum" ? t("location", lang) : tb === "dil" ? t("language", lang) : tb === "bildirim" ? t("notifTab", lang) : t("about", lang);
+            const active = tab === tb;
+            return (
+              <button key={tb} onClick={() => setTab(tb)}
+                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs sm:text-sm font-medium whitespace-nowrap transition ${active ? `${th.card} ${th.accent} border-current` : `border-transparent ${th.textMuted}`}`}>
+                <TabIcon size={14} />
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="overflow-y-auto flex-1 p-5 space-y-4">
