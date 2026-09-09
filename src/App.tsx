@@ -17,9 +17,10 @@ import { showBannerAd, onBannerHeightChange, unlockWithRewardedInterstitial, isR
 import {
   hasNotificationPermission, requestNotificationPermission,
   scheduleDailySummaryNotification, cancelDailySummaryNotification,
-  fireChangeAlertNotification,
+  fireImmediateChangeAlert, scheduleFutureChangeAlert, cancelFutureChangeAlert,
+  FUTURE_CHANGE_ALERT_SLOT_COUNT,
 } from "./services/notificationService";
-import type { WeatherBundle, HourlyForecast } from "./types";
+import type { WeatherBundle } from "./types";
 
 /**
  * th.card sınıfları (ör. "bg-slate-900/40") kart arka planlarında hafif/cam
@@ -61,16 +62,23 @@ function isLikelyCorruptedAlertText(text: string): boolean {
  * kullanır) — bu, "seçtiğim saat = telefonumun gösterdiği saat" beklentisiyle
  * örtüşüyor (konum cihazın kendi saat diliminde ise doğru sonucu verir).
  */
-function findHourlyForTargetTime(hourly: WeatherBundle["hourly"], targetHour: number) {
-  if (!hourly || hourly.length === 0) return null;
-  let best = hourly[0];
+/** `hourly` içinde, verilen saat-of-day'e (targetHour) en yakın elemanın INDEX'ini döner (-1: veri yok). */
+function findHourlyIndexForTargetTime(hourly: WeatherBundle["hourly"], targetHour: number): number {
+  if (!hourly || hourly.length === 0) return -1;
+  let bestIdx = 0;
   let bestDiff = Infinity;
-  for (const h of hourly) {
+  hourly.forEach((h, idx) => {
     const localHour = new Date(h.dt * 1000).getHours();
     const diff = Math.abs(localHour - targetHour);
-    if (diff < bestDiff) { bestDiff = diff; best = h; }
-  }
-  return best;
+    if (diff < bestDiff) { bestDiff = diff; bestIdx = idx; }
+  });
+  return bestIdx;
+}
+
+/** Unix saniyeyi cihazın yerel saatine göre "HH:MM" olarak biçimlendirir. */
+function formatLocalHour(dt: number): string {
+  const d = new Date(dt * 1000);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 /**
@@ -87,101 +95,159 @@ function getTempFeelKey(temp: number): string {
   return "notifFeelHot";
 }
 
+/** Aynı sıcaklık kategorilerinin KISA/sıfat hâli — "ortalama X" gibi cümle kalıplarında kullanılır. */
+function getTempBucketKey(temp: number): string {
+  if (temp <= 0) return "notifBucketFreezing";
+  if (temp <= 8) return "notifBucketCold";
+  if (temp <= 15) return "notifBucketCool";
+  if (temp <= 22) return "notifBucketMild";
+  if (temp <= 29) return "notifBucketWarm";
+  return "notifBucketHot";
+}
+
 /** WMO kodunu geniş bir kategoriye indirger, pratik/ilgi çekici bir öneri cümlesi için. */
 function getConditionTipKey(weatherCode: number, isDay: boolean): string {
   if (weatherCode === 0 || weatherCode === 1) return isDay ? "notifTipClear" : "notifTipClearNight";
   if (weatherCode === 2 || weatherCode === 3) return "notifTipCloudy";
   if (weatherCode === 45 || weatherCode === 48) return "notifTipFog";
-  if ([51, 53, 55, 56, 57].includes(weatherCode)) return "notifTipDrizzle";
+  if ([51, 53, 55].includes(weatherCode)) return "notifTipDrizzle";
   if ([61, 63, 65, 80, 81, 82].includes(weatherCode)) return "notifTipRain";
-  if ([66, 67, 71, 73, 75, 77, 85, 86].includes(weatherCode)) return "notifTipSnow";
+  if ([56, 57, 66, 67, 71, 73, 75, 77, 85, 86].includes(weatherCode)) return "notifTipSnow";
   if ([95, 96, 99].includes(weatherCode)) return "notifTipStorm";
   return "notifTipCloudy"; // güvenli/nötr varsayılan
 }
 
+/** Sadece "belirtilmeye değer" (yağış/kar/fırtına/sis) kategoriler için kısa isim döner; açık/bulutlu için null (aralık belirtmeye gerek yok). */
+function getNotableCategoryKey(weatherCode: number): string | null {
+  if (weatherCode === 45 || weatherCode === 48) return "notifCategoryNameFog";
+  if ([51, 53, 55].includes(weatherCode)) return "notifCategoryNameDrizzle";
+  if ([61, 63, 65, 80, 81, 82].includes(weatherCode)) return "notifCategoryNameRain";
+  if ([56, 57, 66, 67, 71, 73, 75, 77, 85, 86].includes(weatherCode)) return "notifCategoryNameSnow";
+  if ([95, 96, 99].includes(weatherCode)) return "notifCategoryNameStorm";
+  return null;
+}
+
 /**
- * Zamanlanmış günlük bildirimin başlık/metnini üretir. Elde güncel hava
- * verisi varsa "hissedilen sıcaklık kategorisi + pratik öneri" şeklinde
- * ilgi çekici ve rakamsız bir metinle (ör. "Bugün hava serin. Gökyüzü
- * biraz kapalı görünüyor."), yoksa (ör. henüz ilk fetch tamamlanmadıysa)
- * klişe olmayan genel bir metinle döner.
+ * Zamanlanmış günlük bildirimin içeriğini üretir. İki bölümden oluşur:
+ * 1) "Önümüzdeki 2 saat": seçilen saatin (T) hissedilen sıcaklığı + öneri
+ * 2) "T ile T+6 saat arası": o pencerenin ortalama sıcaklık kategorisi +
+ *    içinde yağış/kar/fırtına/sis gibi belirgin bir durum varsa hangi saat
+ *    aralığında olduğu
+ * `body` (collapsed görünüm) sadece 1. bölümü taşır, `largeBody`
+ * (genişletilmiş görünüm) ikisini birden — bildirim uzun olabiliyor.
  */
 function buildNotificationContent(
   weather: WeatherBundle | null,
   timeStr: string,
   lang: LangCode
-): { title: string; body: string } {
+): { title: string; body: string; largeBody?: string } {
   const title = t("notifScheduledTitle", lang);
   if (!weather) return { title, body: t("notifScheduledBody", lang) };
 
   const [hh] = timeStr.split(":").map(Number);
-  const hourData = findHourlyForTargetTime(weather.hourly, Number.isFinite(hh) ? hh : 8);
-  if (!hourData) return { title, body: t("notifScheduledBody", lang) };
+  const targetHour = Number.isFinite(hh) ? hh : 8;
+  const anchorIdx = findHourlyIndexForTargetTime(weather.hourly, targetHour);
+  if (anchorIdx === -1) return { title, body: t("notifScheduledBody", lang) };
 
-  const feel = t(getTempFeelKey(hourData.temperature), lang);
-  const tip = t(getConditionTipKey(hourData.weatherCode, hourData.isDay), lang);
-  return { title, body: `${feel} ${tip}` };
-}
+  const anchor = weather.hourly[anchorIdx];
+  const feel = t(getTempFeelKey(anchor.temperature), lang);
+  const tip = t(getConditionTipKey(anchor.weatherCode, anchor.isDay), lang);
+  const segmentA = `${t("notifNext2hLabel", lang)} ${feel} ${tip}`;
 
-const CHANGE_ALERT_TEMP_THRESHOLD = 5.5; // °C — kullanıcı isteği: "5-6 derece"
-const CHANGE_ALERT_POP_THRESHOLD = 0.35; // yağış olasılığında 35 puanlık fark
+  const window = weather.hourly.slice(anchorIdx, anchorIdx + 6); // T, T+1, ..., T+5 (6 nokta = 6 saatlik pencere)
+  let segmentB = "";
+  const rangeLines: string[] = [];
 
-/**
- * Günün kalan saatlerinde (baseline = şu ana en yakın saat, sonraki 9 saat
- * taranır) sıcaklık veya yağış ihtimalinde önemli bir sıçrama olup
- * olmadığını tespit eder. Geriye dönük değil — tamamen ileriye dönük: "bugün
- * ilerleyen saatlerde böyle bir değişiklik olacak" tespiti, sürekli arka
- * plan izleme gerektirmez, sadece o an elde olan tahmine bakar.
- *
- * `dedupeKey`, aynı sıçramanın (aynı gün + aynı hedef saat + aynı yön için)
- * tekrar tekrar bildirim göndermesini önlemek için kullanılıyor.
- */
-function detectSignificantChange(
-  weather: WeatherBundle,
-  lang: LangCode
-): { dedupeKey: string; title: string; body: string } | null {
-  const hourly = weather.hourly;
-  if (!hourly || hourly.length < 2) return null;
+  if (window.length >= 2) {
+    const avgTemp = window.reduce((sum, h) => sum + h.temperature, 0) / window.length;
+    const bucket = t(getTempBucketKey(avgTemp), lang);
+    const startStr = formatLocalHour(window[0].dt);
+    const endStr = formatLocalHour(window[window.length - 1].dt + 3600);
+    segmentB = t("notifAvgTemplate", lang, { start: startStr, end: endStr, bucket });
 
-  const baseline = hourly[0];
-  const candidates = hourly.slice(1, 10); // sonraki ~9 saat
-
-  let best: { hour: HourlyForecast; kind: "warmer" | "cooler" | "rainUp" | "rainDown"; severity: number } | null = null;
-
-  for (const h of candidates) {
-    const tempDiff = h.temperature - baseline.temperature;
-    const popDiff = h.pop - baseline.pop;
-
-    if (Math.abs(tempDiff) >= CHANGE_ALERT_TEMP_THRESHOLD) {
-      const severity = Math.abs(tempDiff) / CHANGE_ALERT_TEMP_THRESHOLD;
-      if (!best || severity > best.severity) {
-        best = { hour: h, kind: tempDiff > 0 ? "warmer" : "cooler", severity };
-      }
-    }
-    if (Math.abs(popDiff) >= CHANGE_ALERT_POP_THRESHOLD) {
-      const severity = Math.abs(popDiff) / CHANGE_ALERT_POP_THRESHOLD;
-      if (!best || severity > best.severity) {
-        best = { hour: h, kind: popDiff > 0 ? "rainUp" : "rainDown", severity };
-      }
+    let i = 0;
+    while (i < window.length) {
+      const cat = getNotableCategoryKey(window[i].weatherCode);
+      if (!cat) { i++; continue; }
+      let j = i;
+      while (j + 1 < window.length && getNotableCategoryKey(window[j + 1].weatherCode) === cat) j++;
+      const rangeStart = formatLocalHour(window[i].dt);
+      const rangeEnd = formatLocalHour(window[j].dt + 3600);
+      rangeLines.push(t("notifRangeTemplate", lang, { start: rangeStart, end: rangeEnd, category: t(cat, lang) }));
+      i = j + 1;
     }
   }
 
-  if (!best) return null;
+  const largeBody = [segmentA, segmentB, ...rangeLines].filter(Boolean).join("\n");
+  return { title, body: segmentA, largeBody };
+}
 
-  const titleKey =
-    best.kind === "warmer" ? "notifChangeTitleWarmer" :
-    best.kind === "cooler" ? "notifChangeTitleCooler" :
-    best.kind === "rainUp" ? "notifChangeTitleRainUp" : "notifChangeTitleRainDown";
+const CHANGE_ALERT_TEMP_THRESHOLD = 5; // °C
+const CHANGE_ALERT_POP_THRESHOLD = 0.25; // yağış olasılığında 25 puanlık fark (iki yönde de)
 
-  const feel = t(getTempFeelKey(best.hour.temperature), lang);
-  const tip = t(getConditionTipKey(best.hour.weatherCode, best.hour.isDay), lang);
-  const dayKey = new Date().toDateString();
+interface UpcomingChangeAlert {
+  slotIndex: number; // hourly[] içindeki i (saat[i] -> saat[i+1] geçişi)
+  fireAt: Date; // saat[i]'nin başlangıcı ("bir önceki saat diliminin başı")
+  isImmediate: boolean; // fireAt şimdi veya geçmişteyse true
+  title: string;
+  body: string;
+}
 
-  return {
-    dedupeKey: `${dayKey}:${best.hour.dt}:${best.kind}`,
-    title: t(titleKey, lang),
-    body: `${feel} ${tip}`,
-  };
+/**
+ * `weather.hourly` içindeki HER ARDIŞIK SAAT ÇİFTİNİ (i, i+1) karşılaştırır
+ * (yaklaşık 23 karşılaştırma). Önemli bir fark bulunan her çift için AYRI
+ * bir uyarı üretir — birden fazla uyarı aynı anda dönebilir. Uyarı, değişimin
+ * gerçekleştiği saatten (i+1) TAM 1 SAAT ÖNCESİ (saat[i]'nin başlangıcı) için
+ * hesaplanır; bu an geçmişte kaldıysa `isImmediate: true` ile işaretlenir.
+ */
+function detectUpcomingChanges(weather: WeatherBundle, lang: LangCode): UpcomingChangeAlert[] {
+  const hourly = weather.hourly;
+  if (!hourly || hourly.length < 2) return [];
+
+  const now = Date.now();
+  const results: UpcomingChangeAlert[] = [];
+
+  for (let i = 0; i < hourly.length - 1; i++) {
+    const h0 = hourly[i];
+    const h1 = hourly[i + 1];
+    const tempDiff = h1.temperature - h0.temperature;
+    const popDiff = h1.pop - h0.pop;
+
+    let kind: "warmer" | "cooler" | "rainUp" | "rainDown" | null = null;
+    let severity = 0;
+
+    if (Math.abs(tempDiff) >= CHANGE_ALERT_TEMP_THRESHOLD) {
+      severity = Math.abs(tempDiff) / CHANGE_ALERT_TEMP_THRESHOLD;
+      kind = tempDiff > 0 ? "warmer" : "cooler";
+    }
+    if (Math.abs(popDiff) >= CHANGE_ALERT_POP_THRESHOLD) {
+      const popSeverity = Math.abs(popDiff) / CHANGE_ALERT_POP_THRESHOLD;
+      if (popSeverity > severity) {
+        severity = popSeverity;
+        kind = popDiff > 0 ? "rainUp" : "rainDown";
+      }
+    }
+    if (!kind) continue;
+
+    const titleKey =
+      kind === "warmer" ? "notifChangeTitleWarmer" :
+      kind === "cooler" ? "notifChangeTitleCooler" :
+      kind === "rainUp" ? "notifChangeTitleRainUp" : "notifChangeTitleRainDown";
+
+    const feel = t(getTempFeelKey(h1.temperature), lang);
+    const tip = t(getConditionTipKey(h1.weatherCode, h1.isDay), lang);
+    const fireAt = new Date(h0.dt * 1000);
+
+    results.push({
+      slotIndex: i,
+      fireAt,
+      isImmediate: fireAt.getTime() <= now,
+      title: t(titleKey, lang),
+      body: `${t("notifChangeUpcomingLabel", lang)} ${feel} ${tip}`,
+    });
+  }
+
+  return results;
 }
 
 /**
@@ -908,7 +974,7 @@ export default function App() {
     () => !localStorage.getItem("mhd_notif_prompted")
   );
 
-  useEffect(() => { hasNotificationPermission().then(setNotifPermissionGranted); }, []);
+  useEffect(() => { hasNotificationPermission().then(setNotifPermissionGranted); }, [weather]);
 
   const parseNotifTime = (time: string): { hour: number; minute: number } => {
     const [h, m] = time.split(":").map(Number);
@@ -923,8 +989,8 @@ export default function App() {
       localStorage.setItem("mhd_notif_daily_enabled", "true");
       setNotifDailyEnabledState(true);
       const { hour, minute } = parseNotifTime(notifTime);
-      const { title, body } = buildNotificationContent(weather, notifTime, lang);
-      await scheduleDailySummaryNotification(hour, minute, title, body);
+      const { title, body, largeBody } = buildNotificationContent(weather, notifTime, lang);
+      await scheduleDailySummaryNotification(hour, minute, title, body, largeBody);
     } else {
       localStorage.setItem("mhd_notif_daily_enabled", "false");
       setNotifDailyEnabledState(false);
@@ -937,8 +1003,8 @@ export default function App() {
     setNotifTimeState(time);
     if (notifDailyEnabled) {
       const { hour, minute } = parseNotifTime(time);
-      const { title, body } = buildNotificationContent(weather, time, lang);
-      await scheduleDailySummaryNotification(hour, minute, title, body);
+      const { title, body, largeBody } = buildNotificationContent(weather, time, lang);
+      await scheduleDailySummaryNotification(hour, minute, title, body, largeBody);
     }
   };
 
@@ -957,26 +1023,26 @@ export default function App() {
   useEffect(() => {
     if (!notifDailyEnabled) return;
     const { hour, minute } = parseNotifTime(notifTime);
-    const { title, body } = buildNotificationContent(weather, notifTime, lang);
-    scheduleDailySummaryNotification(hour, minute, title, body);
+    const { title, body, largeBody } = buildNotificationContent(weather, notifTime, lang);
+    scheduleDailySummaryNotification(hour, minute, title, body, largeBody);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang]);
 
   // Hava verisi her yenilendiğinde (uygulama her açıldığında/konum
   // değiştiğinde) ve bildirim aktifse, tetiklenme zamanı ile "repeats: true"
-  // AYNI KALARAK sadece İÇERİĞİ (sıcaklık/açıklama/yağış) canlı veriyle
+  // AYNI KALARAK sadece İÇERİĞİ (2 saatlik + 6 saatlik özet) canlı veriyle
   // üzerine yazılır. Böylece bildirim her gün kesin tetiklenir (native
   // repeating alarm), içeriği ise en son uygulamanın açıldığı ana kadar
   // günceldir — VPS/n8n devreye girene kadarki en iyi çaba çözümü.
   useEffect(() => {
     if (!weather || !notifDailyEnabled) return;
     const { hour, minute } = parseNotifTime(notifTime);
-    const { title, body } = buildNotificationContent(weather, notifTime, lang);
-    scheduleDailySummaryNotification(hour, minute, title, body);
+    const { title, body, largeBody } = buildNotificationContent(weather, notifTime, lang);
+    scheduleDailySummaryNotification(hour, minute, title, body, largeBody);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weather]);
 
-  // ---- Ani değişim uyarısı (ileriye dönük, app-open tetiklemeli) ----
+  // ---- Ani değişim uyarısı (ileriye dönük, saat-başı hassasiyetli) ----
   const [notifChangeAlertEnabled, setNotifChangeAlertEnabledState] = useState(
     () => localStorage.getItem("mhd_notif_change_enabled") === "true"
   );
@@ -991,19 +1057,54 @@ export default function App() {
     setNotifChangeAlertEnabledState(val);
   };
 
-  // Hava verisi her yenilendiğinde, aktifse günün kalan saatlerinde önemli
-  // bir sıçrama var mı diye bakılır; varsa ve bugün bu spesifik sıçrama için
-  // daha önce uyarılmadıysa HEMEN (zamanlanmadan) bir bildirim gösterilir.
+  /**
+   * Her ~23 saatlik slotu yeniden değerlendirir: bir slot için önemli bir
+   * değişim tespit edilirse ve gelecekteyse o saate zamanlanır; şu an/geçmişe
+   * denk geliyorsa (sadece slot 0 için mümkündür — sonraki slotlar hep
+   * gelecektedir) HEMEN gösterilir (aynı gün+slot+başlık için tekrar
+   * göstermemek üzere dedup). Artık geçerli olmayan slotlar iptal edilir.
+   */
+  const refreshChangeAlerts = () => {
+    if (!weather) return;
+    if (!notifChangeAlertEnabled) {
+      for (let i = 0; i < FUTURE_CHANGE_ALERT_SLOT_COUNT; i++) cancelFutureChangeAlert(i);
+      return;
+    }
+    const changes = detectUpcomingChanges(weather, lang);
+    const bySlot = new Map(changes.map((c) => [c.slotIndex, c]));
+
+    for (let i = 0; i < FUTURE_CHANGE_ALERT_SLOT_COUNT; i++) {
+      const change = bySlot.get(i);
+      if (!change) {
+        cancelFutureChangeAlert(i);
+        continue;
+      }
+      if (change.isImmediate) {
+        const dedupeKey = `${new Date().toDateString()}:${i}:${change.title}`;
+        const lastKey = localStorage.getItem("mhd_last_immediate_change_key");
+        if (lastKey !== dedupeKey) {
+          localStorage.setItem("mhd_last_immediate_change_key", dedupeKey);
+          fireImmediateChangeAlert(change.title, change.body);
+        }
+        cancelFutureChangeAlert(i);
+      } else {
+        scheduleFutureChangeAlert(i, change.fireAt, change.title, change.body);
+      }
+    }
+  };
+
+  // Hava verisi her yenilendiğinde veya toggle değiştiğinde tüm slotları tazele.
   useEffect(() => {
-    if (!weather || !notifChangeAlertEnabled) return;
-    const change = detectSignificantChange(weather, lang);
-    if (!change) return;
-    const lastKey = localStorage.getItem("mhd_last_change_alert_key");
-    if (lastKey === change.dedupeKey) return; // bu sıçrama için zaten uyarıldı
-    localStorage.setItem("mhd_last_change_alert_key", change.dedupeKey);
-    fireChangeAlertNotification(change.title, change.body);
+    refreshChangeAlerts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weather]);
+  }, [weather, notifChangeAlertEnabled]);
+
+  // Dil değişirse, zaten zamanlanmış slotların metnini güncel dile göre tazele.
+  useEffect(() => {
+    refreshChangeAlerts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
+
 
   // ---- Türetilmiş görünüm verisi ----
   const currentMapping = useMemo(
