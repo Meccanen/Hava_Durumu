@@ -88,8 +88,8 @@ function getTempFeelKey(temp: number): string {
 }
 
 /** WMO kodunu geniş bir kategoriye indirger, pratik/ilgi çekici bir öneri cümlesi için. */
-function getConditionTipKey(weatherCode: number): string {
-  if (weatherCode === 0 || weatherCode === 1) return "notifTipClear";
+function getConditionTipKey(weatherCode: number, isDay: boolean): string {
+  if (weatherCode === 0 || weatherCode === 1) return isDay ? "notifTipClear" : "notifTipClearNight";
   if (weatherCode === 2 || weatherCode === 3) return "notifTipCloudy";
   if (weatherCode === 45 || weatherCode === 48) return "notifTipFog";
   if ([51, 53, 55, 56, 57].includes(weatherCode)) return "notifTipDrizzle";
@@ -119,7 +119,7 @@ function buildNotificationContent(
   if (!hourData) return { title, body: t("notifScheduledBody", lang) };
 
   const feel = t(getTempFeelKey(hourData.temperature), lang);
-  const tip = t(getConditionTipKey(hourData.weatherCode), lang);
+  const tip = t(getConditionTipKey(hourData.weatherCode, hourData.isDay), lang);
   return { title, body: `${feel} ${tip}` };
 }
 
@@ -174,7 +174,7 @@ function detectSignificantChange(
     best.kind === "rainUp" ? "notifChangeTitleRainUp" : "notifChangeTitleRainDown";
 
   const feel = t(getTempFeelKey(best.hour.temperature), lang);
-  const tip = t(getConditionTipKey(best.hour.weatherCode), lang);
+  const tip = t(getConditionTipKey(best.hour.weatherCode, best.hour.isDay), lang);
   const dayKey = new Date().toDateString();
 
   return {
@@ -493,7 +493,7 @@ function SettingsPanel({
           <button onClick={onClose} className={`p-2 rounded-full ${th.cardHover} ${th.textSecondary}`}><X size={18}/></button>
         </div>
 
-        <div className={`flex flex-wrap gap-2 px-3 py-3 border-b ${th.header}`}>
+        <div className={`flex flex-wrap justify-center gap-2 px-3 py-3 border-b ${th.header}`}>
           {(["tema","konum","dil","bildirim","hakkinda"] as const).map(tb => {
             const TabIcon = tb === "tema" ? Palette : tb === "konum" ? MapPin : tb === "dil" ? Globe : tb === "bildirim" ? Bell : Info;
             const label = tb === "tema" ? t("themeTab", lang) : tb === "konum" ? t("location", lang) : tb === "dil" ? t("language", lang) : tb === "bildirim" ? t("notifTab", lang) : t("about", lang);
