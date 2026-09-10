@@ -106,8 +106,11 @@ function getTempBucketKey(temp: number): string {
 }
 
 /** WMO kodunu geniş bir kategoriye indirger, pratik/ilgi çekici bir öneri cümlesi için. */
-function getConditionTipKey(weatherCode: number, isDay: boolean): string {
-  if (weatherCode === 0 || weatherCode === 1) return isDay ? "notifTipClear" : "notifTipClearNight";
+function getConditionTipKey(weatherCode: number, isDay: boolean, feelsLike: number): string {
+  if (weatherCode === 0 || weatherCode === 1) {
+    if (!isDay) return "notifTipClearNight";
+    return feelsLike >= 16 ? "notifTipClear" : "notifTipClearCool"; // hissedilen serin/soğukken güneş gözlüğü mantıksız
+  }
   if (weatherCode === 2 || weatherCode === 3) return "notifTipCloudy";
   if (weatherCode === 45 || weatherCode === 48) return "notifTipFog";
   if ([51, 53, 55].includes(weatherCode)) return "notifTipDrizzle";
@@ -151,7 +154,7 @@ function buildNotificationContent(
 
   const anchor = weather.hourly[anchorIdx];
   const feel = t(getTempFeelKey(anchor.temperature), lang);
-  const tip = t(getConditionTipKey(anchor.weatherCode, anchor.isDay), lang);
+  const tip = t(getConditionTipKey(anchor.weatherCode, anchor.isDay, anchor.feelsLike), lang);
   const segmentA = `${t("notifNext2hLabel", lang)} ${feel} ${tip}`;
 
   const window = weather.hourly.slice(anchorIdx, anchorIdx + 6); // T, T+1, ..., T+5 (6 nokta = 6 saatlik pencere)
@@ -235,7 +238,7 @@ function detectUpcomingChanges(weather: WeatherBundle, lang: LangCode): Upcoming
       kind === "rainUp" ? "notifChangeTitleRainUp" : "notifChangeTitleRainDown";
 
     const feel = t(getTempFeelKey(h1.temperature), lang);
-    const tip = t(getConditionTipKey(h1.weatherCode, h1.isDay), lang);
+    const tip = t(getConditionTipKey(h1.weatherCode, h1.isDay, h1.feelsLike), lang);
     const fireAt = new Date(h0.dt * 1000);
 
     results.push({
