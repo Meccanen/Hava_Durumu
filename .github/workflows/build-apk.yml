@@ -80,6 +80,24 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+      - name: >-
+          Lifecycle dependency grafiğini dök (desktop KMP varyantını kim çekiyor?)
+          [DEBUG — build'den önce, hangi androidx.lifecycle:lifecycle-runtime
+          varyantının (android / desktop KMP) resolve edildiğini görmek için]
+        working-directory: android
+        # DEBUG amaçlıdır; hata verirse gerçek build'i durdurmasın diye '|| true'.
+        run: |
+          echo ">>> :app — runtime classpath'te görünen TÜM androidx.lifecycle satırları"
+          ./gradlew :app:dependencies --configuration debugRuntimeClasspath 2>&1 \
+            | grep -iE "lifecycle" | sort -u || true
+          echo
+          echo ">>> Lifecycle varyant sürüm bilgisi (lifecycle-runtime desktop mi android mi?)"
+          ./gradlew :app:dependencies --configuration debugRuntimeClasspath 2>&1 \
+            | grep -iE "lifecycle" | grep -iE "\+|->|failed|conflict|desktop|jvm" | sort -u || true
+          echo
+          echo ">>> capacitor-android ('capacitor' core modülü) kendi graph'ı — lifecycle varsa hangi sürüm/varyant?"
+          ./gradlew :capacitor:dependencies --configuration debugRuntimeClasspath 2>&1 \
+            | grep -iE "lifecycle" | sort -u || true
       - name: Android SDK 36'ya güncelle (Play Store zorunluluğu)
         run: |
           cat > android/variables.gradle << 'GRADLEEOF'
