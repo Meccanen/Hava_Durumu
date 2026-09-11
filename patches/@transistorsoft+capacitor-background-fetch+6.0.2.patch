@@ -1,0 +1,31 @@
+diff --git a/node_modules/@transistorsoft/capacitor-background-fetch/android/build.gradle b/node_modules/@transistorsoft/capacitor-background-fetch/android/build.gradle
+index f9e8b57..86a6935 100644
+--- a/node_modules/@transistorsoft/capacitor-background-fetch/android/build.gradle
++++ b/node_modules/@transistorsoft/capacitor-background-fetch/android/build.gradle
+@@ -18,7 +18,6 @@ buildscript {
+ apply plugin: 'com.android.library'
+ 
+ def DEFAULT_LIFE_CYCLE_RUNTIME_VERSION          = "2.7.0"
+-def DEFAULT_LIFE_CYCLE_EXTENSIONS_VERSION       = "2.2.0"
+ 
+ def safeExtGet(prop, fallback) {
+     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+@@ -63,13 +62,15 @@ repositories {
+ 
+ dependencies {
+     def lifeCycleRuntimeVersion = safeExtGet('lifeCycleRuntimeVersion', DEFAULT_LIFE_CYCLE_RUNTIME_VERSION)
+-    def lifeCycleExtensionsVersion = safeExtGet('lifeCycleExtensionsVersion', DEFAULT_LIFE_CYCLE_EXTENSIONS_VERSION)
+ 
+     implementation fileTree(dir: 'libs', include: ['*.jar'])
+     implementation project(':capacitor-android')
+-    // LifeCycleObserver
++    // LifeCycleObserver + ProcessLifecycleOwner: bind both to lifecycle-runtime's
++    // version. lifecycle-extensions 2.2.0 was pulling in lifecycle-process 2.2.0,
++    // whose ProcessLifecycleInitializer references classes removed in
++    // lifecycle-runtime 2.7.0 -> NoClassDefFoundError at app startup.
+     implementation "androidx.lifecycle:lifecycle-runtime:$lifeCycleRuntimeVersion"
+-    implementation "androidx.lifecycle:lifecycle-extensions:$lifeCycleExtensionsVersion"
++    implementation "androidx.lifecycle:lifecycle-process:$lifeCycleRuntimeVersion"
+ 
+     api(group: 'com.transistorsoft', name:'tsbackgroundfetch', version: '+')
+     testImplementation "junit:junit:$junitVersion"
