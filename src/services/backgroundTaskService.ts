@@ -5,6 +5,9 @@ import {
   getCachedWeather,
   CACHE_MAX_AGE_MS,
 } from './weatherService';
+import { syncScheduledNotifications } from './notificationController';
+import { detectLanguage, LangCode } from '../utils/i18n';
+import type { WeatherBundle } from '../types';
 
 /**
  * ============================================================================
@@ -67,7 +70,13 @@ async function executeWeatherRefresh(): Promise<boolean> {
     });
 
     // fetchWeatherBundle başarılı çekimi otomatik cache'e yazar.
-    await fetchWeatherBundle(location.latitude, location.longitude);
+    const bundle: WeatherBundle = await fetchWeatherBundle(location.latitude, location.longitude);
+
+    // Yeni veriyle zamanlanmış bildirimleri de tazele: günlük özet ve değişim
+    // uyarılarının İÇERİĞİ artık bayat kalmaz. Bildirim izni yoksa veya
+    // tercih kapalıysa syncScheduledNotifications sessizce hiçbir şey yapmaz.
+    const lang: LangCode = (localStorage.getItem('mhd_lang') as LangCode) || detectLanguage();
+    await syncScheduledNotifications(bundle, lang);
 
     console.log('[backgroundTaskService] Hava durumu başarıyla güncellendi.');
 
