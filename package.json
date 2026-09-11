@@ -22,6 +22,7 @@
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
     "@fortawesome/react-fontawesome": "^3.3.1",
     "@tailwindcss/vite": "^4.1.14",
+    "@transistorsoft/capacitor-background-fetch": "^6.0.2",
     "@vitejs/plugin-react": "^5.0.4",
     "capacitor-play-billing": "file:./local-plugins/capacitor-play-billing",
     "lucide-react": "^0.546.0",

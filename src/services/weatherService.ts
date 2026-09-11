@@ -18,6 +18,75 @@ const BASE_URL = "https://api.weatherapi.com/v1/forecast.json";
 const FORECAST_DAYS = 3; // Starter'a geçince: 7
 const HOURLY_WINDOW = 24; // Ana sayfa saatlik şeridi — sadece önümüzdeki 24 saat
 
+/**
+ * ============================================================================
+ * YEREL CACHE (localStorage)
+ * ============================================================================
+ * Arka plan task servisi (backgroundTaskService.ts) her 30 dakikada bir hava
+ * verisini çekip bu cache'e yazar; App.tsx ise açılışta/periyodik kontrolde
+ * buradan okur. Böylece arka planda geçen sürede bile veri güncel kalır.
+ */
+const CACHE_KEY = 'mhd_weather_cache';
+const CACHE_LOC_KEY = 'mhd_weather_cache_loc'; // cache'in ait olduğu konum
+export const CACHE_MAX_AGE_MS = 30 * 60 * 1000; // 30 dakika
+
+function cacheLocationMatches(latitude?: number, longitude?: number): boolean {
+  if (latitude === undefined || longitude === undefined) return true; // konum istenmemişse geç
+  try {
+    const raw = localStorage.getItem(CACHE_LOC_KEY);
+    if (!raw) return false;
+    const loc = JSON.parse(raw);
+    return (
+      Math.abs(loc.latitude - latitude) < 0.01 &&
+      Math.abs(loc.longitude - longitude) < 0.01
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Cache'den hava durumu verisi okur.
+ * İstenen konum verilirse, cache'in o konuma ait olup olmadığını da kontrol
+ * eder — kullanıcı şehir değiştirdiyse eski şehrin verisi GÖSTERİLMEZ.
+ * Yoksa veya bozuksa null döner.
+ */
+export function getCachedWeather(latitude?: number, longitude?: number): WeatherBundle | null {
+  try {
+    if (!cacheLocationMatches(latitude, longitude)) return null;
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const cached: WeatherBundle = JSON.parse(raw);
+    if (!cached || typeof cached.fetchedAt !== "number") return null;
+    return cached;
+  } catch {
+    return null;
+  }
+}
+
+/** Cache'deki verinin 30 dakika içinde taze olup olmadığını kontrol eder. */
+export function isCacheFresh(latitude?: number, longitude?: number): boolean {
+  const cached = getCachedWeather(latitude, longitude);
+  if (!cached) return false;
+  return Date.now() - cached.fetchedAt < CACHE_MAX_AGE_MS;
+}
+
+/**
+ * Hava durumu verisini localStorage cache'ine yazar.
+ * İstenen konum verilirse onunla birlikte kaydedilir (getCachedWeather
+ * eşleşme kontrolü için kullanır).
+ */
+export function saveWeatherToCache(bundle: WeatherBundle, latitude?: number, longitude?: number): void {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(bundle));
+    if (latitude !== undefined && longitude !== undefined) {
+      localStorage.setItem(CACHE_LOC_KEY, JSON.stringify({ latitude, longitude }));
+    }
+  } catch (e) {
+    console.error("[weatherService] Cache yazma hatası:", e);
+  }
+}
+
 export class WeatherServiceError extends Error {
   constructor(message: string, public readonly code: "NETWORK" | "API_ERROR") {
     super(message);
@@ -220,5 +289,15 @@ export async function fetchWeatherBundle(
     expiresTs: a.expires ? toUnix(a.expires.slice(0, 16)) : null,
   }));
 
-  return { current, hourly, daily, dailyHourly, airQuality, astronomy, alerts, fetchedAt: Date.now() };
+  const bundle: WeatherBundle = {
+    current, hourly, daily, dailyHourly, airQuality, astronomy, alerts,
+    fetchedAt: Date.now(),
+  };
+
+  // Her başarılı çekim otomatik olarak cache'e yazılır (hangi konuma
+  // ait olduğu da saklanır). Böylece çağıran taraf (App.tsx veya
+  // backgroundTaskService) ayrıca kaydetmek zorunda kalmaz.
+  saveWeatherToCache(bundle, latitude, longitude);
+
+  return bundle;
 }

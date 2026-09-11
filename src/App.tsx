@@ -10,7 +10,8 @@ import { Location } from "./types";
 export type FontScale = "normal" | "large" | "xlarge";
 import { TURKEY_PROVINCES, PAKISTAN_CITIES } from "./utils/cityData";
 import { getWeatherMapping } from "./utils/weatherHelper";
-import { fetchWeatherBundle, WeatherServiceError } from "./services/weatherService";
+import { fetchWeatherBundle, WeatherServiceError, getCachedWeather, CACHE_MAX_AGE_MS } from "./services/weatherService";
+import { initBackgroundTask } from "./services/backgroundTaskService";
 import { requestLocationPermission, getCurrentPosition } from "./utils/locationHelper";
 import { t, detectLanguage, LangCode } from "./utils/i18n";
 import { showBannerAd, onBannerHeightChange, unlockWithRewardedInterstitial, isRewardedUnlockedThisSession } from "./services/adMobService";
@@ -841,6 +842,14 @@ export default function App() {
   const [weatherError, setWeatherError] = useState<string | null>(null);
 
   const loadWeather = async () => {
+    // Önce cache'den oku — arka plan task'ı 30 dk'da bir tazeliyor. Cache
+    // tazeyse VE mevcut konumun verisiyse API çağrısı yapma (hem hız hem
+    // Free tier limiti için).
+    const cached = getCachedWeather(location.latitude, location.longitude);
+    if (cached && Date.now() - cached.fetchedAt < CACHE_MAX_AGE_MS) {
+      setWeather(cached);
+      return;
+    }
     setWeatherLoading(true); setWeatherError(null);
     try {
       const bundle = await fetchWeatherBundle(location.latitude, location.longitude);
@@ -849,12 +858,36 @@ export default function App() {
       const msg = e instanceof WeatherServiceError ? e.message : t("wxError", lang);
       setWeatherError(msg);
       console.log("[Meccanen HD] Hava durumu alınamadı:", e);
+      // Ağ hatası olsa bile son bilinen cache'i göster (çevrimdışı dayanıklılık)
+      const offline = getCachedWeather(location.latitude, location.longitude);
+      if (offline && !weather) setWeather(offline);
     } finally {
       setWeatherLoading(false);
     }
   };
 
   useEffect(() => { loadWeather(); }, [location.latitude, location.longitude, lang]);
+
+  // ---- Arka plan veri yenileme (30 dk) ----
+  // BackgroundFetch, uygulama arka plandayken hava verisini cache'e yazar.
+  // Uygulama öne geldiğinde veya düzenli aralıkla burada cache'den okuyoruz.
+  useEffect(() => {
+    initBackgroundTask();
+  }, []);
+
+  // Periyodik kontrol: cache'de bizim state'ten daha yeni bir veri varsa al.
+  // Arka plan task'ı React state'ini doğrudan değiştiremez — bu köprü bunu
+  // çözüyor; ayrıca cache'in güncel konuma ait olduğunu da kontrol ederiz.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cached = getCachedWeather(location.latitude, location.longitude);
+      if (cached && cached.fetchedAt > (weather?.fetchedAt ?? 0)) {
+        console.log("[Meccanen HD] Arka plandan yeni veri alındı, state güncelleniyor.");
+        setWeather(cached);
+      }
+    }, 5 * 60 * 1000); // her 5 dakika
+    return () => clearInterval(interval);
+  }, [weather, location.latitude, location.longitude]);
 
   // ---- AdMob banner ----
   // NOT: Şu an herkese reklam gösteriliyor. Abonelik sistemi (aylık/yıllık,
