@@ -98,65 +98,79 @@ jobs:
           ./gradlew :app:dependencies --configuration debugRuntimeClasspath 2>&1 \
             | grep -iE "desktop|jvm|cycle|conflict" | sort -u || true
       - name: >-
-          FIX: Lifecycle desktop/jvm KMP modüllerini APK'dan hiç resolve etme (exclude —
-          substitution KMP attribute selection'ı yakalayamıyordu + Groovy DSL
-          substitute(module)using(module)'ı DefaultDependencySubstitutions üzerinde
-          using() çağırıp build'i bozuyordu; ReportFragment yalnızca -android AAR'ında)
+          FIX (kullanıcı onayı — FORCE 2.6.2): Lifecycle'i resolutionStrategy.force ile
+          2.6.2'ye sabitle. 2.6.2, KMP-öncesi TEK-varyant yayın: lifecycle-common-jvm /
+          lifecycle-runtime-desktop gibi koordinatlar yok → Gradle attribute selection'ı
+          desktop/jvm KMP varyantını seçemez → ReportFragment (yalnızca lifecycle-process
+          -android AAR'ında) ve LifecycleOwner (lifecycle-common) APK'ya girer.
+          NEDEN substitution DEĞİL: substitute(module).using(module) formu
+          DefaultDependencySubstitutions üzerinde using() çağırıp Groovy DSL hatası
+          üretiyordu (+ KMP attribute selection'ı yakalayamıyordu). NEDEN exclude DEĞİL:
+          exclude, KMP attribute selection'ı by-pass eder ve 2.8.5'te LifecycleOwner'ın
+          bulunduğu lifecycle-common android varyantını düşürüp 'class file not found'
+          compile hatası bıraktı (CI'da görüldü).
+        working-directory: android
         run: |
           FIX_GRADLE="$GITHUB_WORKSPACE/android/build.gradle"
-          APPDIR="$GITHUB_WORKSPACE/android/app"
-          mkdir -p "$APPDIR"
+          mkdir -p "$GITHUB_WORKSPACE/android/app"
           if [ ! -f "$FIX_GRADLE" ]; then
               echo "// root build.gradle" > "$FIX_GRADLE"
           fi
-          # İTERATİF + idempotent: substitution kalıntısı varsa temizle.
-          sed -i '/SUBSTEOF/,/SUBSTEOF/d' "$FIX_GRADLE" 2>/dev/null || true
-          grep -vE "substitute|SUBSTEOF|resolutionStrategy.dependencySubstitution" \
+          # Önceki kalıntıları temizle (exclude/substitution/FIXEOF vs.).
+          grep -vE "substitute|SUBSTEOF|FIXEOF|APPEOF|exclude group|lifecycle-.*-desktop|lifecycle-.*-jvm" \
             "$FIX_GRADLE" > "$FIX_GRADLE.tmp" && mv "$FIX_GRADLE.tmp" "$FIX_GRADLE"
-          # exclude bloğu: desktop/jvm lifecycle modülü hiç resolve edilmesin.
-          if ! grep -q "lifecycle-runtime-desktop" "$FIX_GRADLE"; then
-              cat >> "$FIX_GRADLE" << 'FIXEOF'
+          # FORCE 2.6.2 bloğu (idempotent).
+          if ! grep -q "lifecycle-runtime-ktx:2.6.2" "$FIX_GRADLE"; then
+              cat >> "$FIX_GRADLE" << 'FORCE2EOF'
           allprojects {
               configurations.all {
-                  exclude group: 'androidx.lifecycle', module: 'lifecycle-runtime-desktop'
-                  exclude group: 'androidx.lifecycle', module: 'lifecycle-runtime-jvm'
-                  exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-desktop'
-                  exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-jvm'
-                  exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-savedstate-desktop'
-                  exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-savedstate-jvm'
-                  exclude group: 'androidx.lifecycle', module: 'lifecycle-common-desktop'
-                  exclude group: 'androidx.lifecycle', module: 'lifecycle-common-jvm'
+                  resolutionStrategy {
+                      force 'androidx.lifecycle:lifecycle-runtime:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-common:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-common-java8:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-process:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-service:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-viewmodel:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-viewmodel-savedstate-ktx:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-livedata-core:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-livedata:2.6.2'
+                      force 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.2'
+                  }
               }
           }
-          FIXEOF
-              echo ">>> Lifecycle desktop/jvm exclude eklendi (ReportFragment APK'dan dışlandı)"
+          FORCE2EOF
+              echo ">>> Lifecycle 2.6.2'ye force edildi (KMP desktop/jvm zinciri hiç kurulamaz)"
           else
-              echo ">>> Lifecycle exclude zaten mevcut, atlandı."
+              echo ">>> Lifecycle force 2.6.2 zaten mevcut, atlandı."
           fi
-          # app/build.gradle'a: ReportFragment içeren -android AAR'larını explicit ekle.
-          APP_GRADLE=android/app/build.gradle
-          if [ -f "$APP_GRADLE" ] && ! grep -q "lifecycle-runtime-android" "$APP_GRADLE"; then
-              cat >> "$APP_GRADLE" << 'APPEOF'
+          # app/build.gradle'a: ReportFragment/lifecycleOwner'ı -android eksplisit ekle.
+          APP_GRADLE="$GITHUB_WORKSPACE/android/app/build.gradle"
+          if [ -f "$APP_GRADLE" ] && ! grep -q "lifecycle-process:2.6.2" "$APP_GRADLE"; then
+              cat >> "$APP_GRADLE" << 'APPPEOF'
           dependencies {
-              implementation 'androidx.lifecycle:lifecycle-runtime-android:2.8.5'
-              implementation 'androidx.lifecycle:lifecycle-process:2.8.5'
-              implementation 'androidx.lifecycle:lifecycle-common:2.8.5'
+              implementation 'androidx.lifecycle:lifecycle-process:2.6.2'
+              implementation 'androidx.lifecycle:lifecycle-runtime:2.6.2'
+              implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.2'
+              implementation 'androidx.lifecycle:lifecycle-common:2.6.2'
           }
-          APPEOF
-              echo ">>> -android lifecycle AAR'ları app'e explicit eklendi (ReportFragment garantili)"
+          APPPEOF
+              echo ">>> app'e -android lifecycle 2.6.2 eklendi (ReportFragment/lifecycleOwner garanti)"
           else
-              echo ">>> -android lifecycle AAR'ları zaten mevcut, atlandı."
+              echo ">>> app lifecycle 2.6.2 zaten mevcut, atlandı."
           fi
       - name: >-
-          FIX-ONAY: Lifecycle graph'ı fatal/build hatası ÜRETMEDEN doğrula (exclude sonrası
-          desktop/jvm HÂLÂ görünüyor mu? — Substitution'sız bırakınca da APK yeşil build olmalı)
+          FIX-ONAY: Lifecycle graph'ı — force 2.6.2 sonrası desktop/jvm HÂLÂ görünüyor
+          mu? (2.6.2 KMP'de bu koordinatlar YOK; görünürse force zinciri kurulamadı demektir)
         working-directory: android
         run: |
-          echo ">>> :app — lifecycle (exclude sonrası debugRuntimeClasspath)"
+          echo ">>> :app — lifecycle (force 2.6.2 sonrası debugRuntimeClasspath)"
           ./gradlew :app:dependencies --configuration debugRuntimeClasspath 2>&1 \
             | grep -iE "lifecycle" | sort -u || true
           echo
-          echo ">>> desktop/jvm HÂLÂ var mı (olması ENDİŞE — exclude çalışmadı demektir)?"
+          echo ">>> desktop/jvm HÂLÂ var mı (2.6.2'de YOK olmalı — görünürse FORCE çalışmadı demektir, endişe)"
           ./gradlew :app:dependencies --configuration debugRuntimeClasspath 2>&1 \
             | grep -iE "desktop|jvm|lifecycle-common-jvm" | sort -u || true
       - name: Android SDK 36'ya güncelle (Play Store zorunluluğu)
