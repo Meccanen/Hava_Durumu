@@ -2,6 +2,9 @@ import {
   CurrentWeather, DailyForecast, HourlyForecast, WeatherBundle,
   AirQuality, Astronomy, WeatherAlert,
 } from "../types";
+import type {
+  WeatherApiResponse, WeatherApiForecastDay, WeatherApiHour, WeatherApiAlert,
+} from "../types/weatherApiRaw";
 
 /**
  * WeatherAPI.com — tek API'den mevcut durum + saatlik/günlük tahmin +
@@ -192,16 +195,16 @@ export async function fetchWeatherBundle(
     throw new WeatherServiceError("Hava durumu servisine ulaşılamadı.", "NETWORK");
   }
 
-  const data = await res.json();
+  const data = await res.json().catch(() => null) as WeatherApiResponse | null;
 
-  if (!res.ok || data.error) {
+  if (!res.ok || !data || data.error) {
     throw new WeatherServiceError(
       data?.error?.message ?? `Hava durumu servisi hata döndürdü (${res.status}).`,
       "API_ERROR"
     );
   }
 
-  const today = data.forecast.forecastday[0];
+  const today: WeatherApiForecastDay = data.forecast.forecastday[0];
   const astroToday = today.astro;
 
   const sunriseToday = astroTimeToUnix(today.date, astroToday.sunrise) ?? toUnix(`${today.date} 06:00`);
@@ -221,7 +224,7 @@ export async function fetchWeatherBundle(
     uvIndex: Math.round(data.current.uv),
   };
 
-  const allHours: any[] = data.forecast.forecastday.flatMap((d: any) => d.hour);
+  const allHours = data.forecast.forecastday.flatMap((d: WeatherApiForecastDay) => d.hour);
   const nowTs = Date.now() / 1000;
   let startIdx = allHours.findIndex((h) => toUnix(h.time) >= nowTs);
   if (startIdx === -1) startIdx = 0;
@@ -237,7 +240,7 @@ export async function fetchWeatherBundle(
       isDay: h.is_day === 1,
     }));
 
-  const daily: DailyForecast[] = data.forecast.forecastday.map((d: any) => ({
+  const daily: DailyForecast[] = data.forecast.forecastday.map((d: WeatherApiForecastDay) => ({
     dt: toUnix(`${d.date} 12:00`),
     tempMin: Math.round(d.day.mintemp_c),
     tempMax: Math.round(d.day.maxtemp_c),
@@ -247,8 +250,8 @@ export async function fetchWeatherBundle(
 
   // Her gün için TAM 24 saatlik döküm (nem/basınç/rüzgar dahil) —
   // "Günlük Tahmin" listesinde bir güne tıklayınca açılan detay ekranı için.
-  const dailyHourly: HourlyForecast[][] = data.forecast.forecastday.map((d: any) =>
-    d.hour.map((h: any) => ({
+  const dailyHourly: HourlyForecast[][] = data.forecast.forecastday.map((d: WeatherApiForecastDay) =>
+    d.hour.map((h: WeatherApiHour) => ({
       dt: toUnix(h.time),
       temperature: Math.round(h.temp_c),
       feelsLike: Math.round(h.feelslike_c),
@@ -280,7 +283,7 @@ export async function fetchWeatherBundle(
     moonIllumination: Number(astroToday.moon_illumination) || 0,
   };
 
-  const alerts: WeatherAlert[] = (data.alerts?.alert ?? []).map((a: any) => ({
+  const alerts: WeatherAlert[] = (data.alerts?.alert ?? []).map((a: WeatherApiAlert) => ({
     headline: a.headline || a.event,
     event: a.event,
     severity: a.severity,

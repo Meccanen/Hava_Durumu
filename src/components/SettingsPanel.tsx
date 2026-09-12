@@ -9,6 +9,15 @@ import { TURKEY_PROVINCES, PAKISTAN_CITIES } from "../utils/cityData";
 import { APP_VERSION, DEFAULT_LOCATION } from "../config";
 import type { Location } from "../types";
 
+interface GeocodingResult {
+  name: string;
+  country?: string;
+  latitude: number;
+  longitude: number;
+  timezone?: string;
+  admin1?: string;
+}
+
 /**
  * AYARLAR PANELİ — Tema / Konum / Dil / Bildirim / Hakkında (Destekçi Rozeti dahil).
  */
@@ -56,7 +65,7 @@ export default function SettingsPanel({
       const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=${apiLang}`);
       const data = await res.json();
       if (data.results?.length) {
-        setSearchResults(data.results.map((r: any) => ({
+        setSearchResults(data.results.map((r: GeocodingResult) => ({
           name: r.name, country: r.country || t("unknown", lang),
           latitude: r.latitude, longitude: r.longitude,
           timezone: r.timezone && r.timezone !== "GMT" && r.timezone !== "UTC"
