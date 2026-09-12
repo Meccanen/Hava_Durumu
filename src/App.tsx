@@ -23,7 +23,7 @@ import type { WeatherBundle } from "./types";
 import SettingsPanel from "./components/SettingsPanel";
 import WeatherDashboard from "./components/WeatherDashboard";
 import DetailModal, { DetailKind } from "./components/DetailModal";
-import { LocationPrompt, NotificationPrompt } from "./components/Prompts";
+import { LocationPrompt, NotificationPrompt, LocationErrorBanner } from "./components/Prompts";
 
 /**
  * ============================================================================
@@ -72,6 +72,7 @@ export default function App() {
     () => localStorage.getItem("mhd_auto_location") === "true"
   );
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<"denied" | "failed" | null>(null);
   const [showLocationPrompt, setShowLocationPrompt] = useState(
     () => !localStorage.getItem("mhd_location_prompted")
   );
@@ -163,7 +164,7 @@ export default function App() {
       const coords = await getCurrentPosition();
       const latDiff = Math.abs(coords.latitude - location.latitude);
       const lonDiff = Math.abs(coords.longitude - location.longitude);
-      if (latDiff < 0.05 && lonDiff < 0.05) { setIsDetectingLocation(false); return; }
+      if (latDiff < 0.05 && lonDiff < 0.05) { setLocationError(null); setIsDetectingLocation(false); return; }
 
       let name = `${coords.latitude.toFixed(2)}°N ${coords.longitude.toFixed(2)}°E`;
       let country = t("unknown", lang);
@@ -187,10 +188,13 @@ export default function App() {
         timezone: guessTimezone(coords.longitude),
       };
       setLocationAndSave(newLoc);
+      setLocationError(null);
       const exists = savedLocations.some(l => l.latitude.toFixed(2) === newLoc.latitude.toFixed(2));
       if (!exists) setSavedLocations([...savedLocations, newLoc]);
     } catch (e) {
       console.log("[Meccanen HD] Konum tespiti hatası:", e);
+      const permDenied = (e as { code?: number } | undefined)?.code === 1;
+      setLocationError(permDenied ? "denied" : "failed");
     }
     setIsDetectingLocation(false);
   };
@@ -210,13 +214,17 @@ export default function App() {
   const handleFindLocation = async () => {
     localStorage.setItem("mhd_auto_location", "true");
     setAutoLocationEnabled(true);
+    setLocationError(null);
     setShowLocationPrompt(true);
   };
 
   const handleToggleAutoLocation = (val: boolean) => {
     localStorage.setItem("mhd_auto_location", String(val));
     setAutoLocationEnabled(val);
-    if (val) detectAndUpdateLocation();
+    if (val) {
+      setLocationError(null);
+      detectAndUpdateLocation();
+    }
   };
 
   const handleLocationAllowed = async () => {
@@ -226,7 +234,7 @@ export default function App() {
     const hasPermission = await requestLocationPermission();
     if (!hasPermission) {
       setIsDetectingLocation(false);
-      alert(t("locationDenied", lang));
+      setLocationError("denied");
       return;
     }
     await detectAndUpdateLocation();
@@ -235,6 +243,21 @@ export default function App() {
   const handleLocationDenied = () => {
     setShowLocationPrompt(false);
     localStorage.setItem("mhd_location_prompted", "true");
+  };
+
+  const handleLocationRetry = () => {
+    setLocationError(null);
+    if (autoLocationEnabled) {
+      detectAndUpdateLocation();
+    } else {
+      handleFindLocation();
+    }
+  };
+
+  const handleLocationSearchCity = () => {
+    setLocationError(null);
+    setSettingsTab("konum");
+    setShowSettings(true);
   };
 
   // ---- Bildirim tercihleri (konum promptuyla aynı desen) ----
@@ -470,6 +493,17 @@ export default function App() {
             </div>
           </div>
         </header>
+
+        {locationError && !showSettings && (
+          <LocationErrorBanner
+            th={th}
+            lang={lang}
+            isDenied={locationError === "denied"}
+            onRetry={handleLocationRetry}
+            onSearchCity={handleLocationSearchCity}
+            onDismiss={() => setLocationError(null)}
+          />
+        )}
 
         {weatherLoading && !weather && (
           <div className="flex flex-col items-center gap-3 py-16">
