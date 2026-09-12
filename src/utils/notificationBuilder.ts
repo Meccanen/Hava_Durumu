@@ -91,59 +91,103 @@ export function getNotableCategoryKey(weatherCode: number): string | null {
   return null;
 }
 
+/** WMO/WeatherAPI kodunu başlıkta gösterilecek bir emojiye çevirir. */
+export function weatherEmoji(weatherCode: number, isDay: boolean): string {
+  if (weatherCode === 0 || weatherCode === 1) return isDay ? "☀️" : "🌙";
+  if (weatherCode === 2 || weatherCode === 3) return "⛅";
+  if (weatherCode === 45 || weatherCode === 48) return "🌫️";
+  if ([51, 53, 55, 56, 57].includes(weatherCode)) return "🌦️";
+  if ([61, 63, 65, 80, 81, 82, 95, 96, 99].includes(weatherCode)) return "🌧️";
+  if ([66, 67, 71, 73, 75, 77, 85, 86].includes(weatherCode)) return "🌨️";
+  return "🌡️";
+}
+
 /**
- * Zamanlanmış günlük bildirimin içeriğini üretir. İki bölümden oluşur:
- * 1) "Önümüzdeki 2 saat": seçilen saatin (T) hissedilen sıcaklığı + öneri
- * 2) "T ile T+6 saat arası": o pencerenin ortalama sıcaklık kategorisi +
+ * Zamanlanmış günlük bildirimin içeriğini üretir. İçerik dört bölümden oluşur:
+ * 0) Başlık: günün ana durum emojisi + konum adı + soru ("☀️ İstanbul: Bugün nasıl geçecek?")
+ * 1) "Bugünün min/max sıcaklığı": günün bilançosu (sayı = ilk bakışta cazibe)
+ * 2) Seçilen saatin 2SAATLİK penceresi: hissedilen + öneri (etiket dinamik saat —
+ *    "Önümüzdeki 2 saat" değil, gerçek aralık gösterilir)
+ * 3) "T ile T+6 saat arası": o pencerenin ortalama sıcaklık kategorisi +
  *    içinde yağış/kar/fırtına/sis gibi belirgin bir durum varsa hangi saat
  *    aralığında olduğu
- * `body` (collapsed görünüm) sadece 1. bölümü taşır, `largeBody`
- * (genişletilmiş görünüm) ikisini birden — bildirim uzun olabiliyor.
+ * `body` (collapsed görünüm) sadece 1. bölümü (min/max) taşır — bildirim
+ * çekmecesinde ilk satır sayı içerir; `largeBody` (genişletilmiş görünüm)
+ * 1+2+3 bölümlerini bir arada verir.
  */
 export function buildNotificationContent(
   weather: WeatherBundle | null,
   timeStr: string,
-  lang: LangCode
+  lang: LangCode,
+  locationName?: string
 ): { title: string; body: string; largeBody?: string } {
-  const title = t("notifScheduledTitle", lang);
-  if (!weather) return { title, body: t("notifScheduledBody", lang) };
+  if (!weather) return { title: t("notifScheduledTitle", lang), body: t("notifScheduledBody", lang) };
 
   const [hh] = timeStr.split(":").map(Number);
   const targetHour = Number.isFinite(hh) ? hh : 8;
   const anchorIdx = findHourlyIndexForTargetTime(weather.hourly, targetHour);
-  if (anchorIdx === -1) return { title, body: t("notifScheduledBody", lang) };
+  if (anchorIdx === -1) return { title: t("notifScheduledTitle", lang), body: t("notifScheduledBody", lang) };
 
   const anchor = weather.hourly[anchorIdx];
-  const feel = t(getTempFeelKey(anchor.temperature), lang);
-  const tip = t(getConditionTipKey(anchor.weatherCode, anchor.isDay, anchor.feelsLike), lang);
-  const segmentA = `${t("notifNext2hLabel", lang)} ${feel} ${tip}`;
+  const titleEmoji = weatherEmoji(anchor.weatherCode, anchor.isDay);
+  const title = locationName
+    ? `${titleEmoji} ${locationName}: ${t("notifScheduledTitle", lang)}`
+    : `${titleEmoji} ${t("notifScheduledTitle", lang)}`;
 
-  const window = weather.hourly.slice(anchorIdx, anchorIdx + 6); // T, T+1, ..., T+5 (6 nokta = 6 saatlik pencere)
+  // ---- Bölüm 2: seçilen saatin 2 saatlik penceresi (hissedilen + öneri) ----
+  const window2 = weather.hourly.slice(anchorIdx, anchorIdx + 2);
+  let window2Label = "";
+  if (window2.length >= 2) {
+    const startStr = formatLocalHour(window2[0].dt);
+    const endStr = formatLocalHour(window2[1].dt + 3600);
+    const feel = t(getTempFeelKey(anchor.feelsLike ?? anchor.temperature), lang);
+    const tip = t(getConditionTipKey(anchor.weatherCode, anchor.isDay, anchor.feelsLike), lang);
+    window2Label = t("notifTimeWindowTemplate", lang, {
+      start: startStr,
+      end: endStr,
+      feel,
+      tip,
+    });
+  } else if (anchorIdx >= 0) {
+    const feel = t(getTempFeelKey(anchor.feelsLike ?? anchor.temperature), lang);
+    const tip = t(getConditionTipKey(anchor.weatherCode, anchor.isDay, anchor.feelsLike), lang);
+    window2Label = `${feel} ${tip}`;
+  }
+
+  // ---- Bölüm 3: 6 saatlik pencere ortalaması + belirgin aralıklar ----
+  const window6 = weather.hourly.slice(anchorIdx, anchorIdx + 6);
   let segmentB = "";
   const rangeLines: string[] = [];
 
-  if (window.length >= 2) {
-    const avgTemp = window.reduce((sum, h) => sum + h.temperature, 0) / window.length;
+  if (window6.length >= 2) {
+    const avgTemp = window6.reduce((sum, h) => sum + h.temperature, 0) / window6.length;
     const bucket = t(getTempBucketKey(avgTemp), lang);
-    const startStr = formatLocalHour(window[0].dt);
-    const endStr = formatLocalHour(window[window.length - 1].dt + 3600);
+    const startStr = formatLocalHour(window6[0].dt);
+    const endStr = formatLocalHour(window6[window6.length - 1].dt + 3600);
     segmentB = t("notifAvgTemplate", lang, { start: startStr, end: endStr, bucket });
 
     let i = 0;
-    while (i < window.length) {
-      const cat = getNotableCategoryKey(window[i].weatherCode);
+    while (i < window6.length) {
+      const cat = getNotableCategoryKey(window6[i].weatherCode);
       if (!cat) { i++; continue; }
       let j = i;
-      while (j + 1 < window.length && getNotableCategoryKey(window[j + 1].weatherCode) === cat) j++;
-      const rangeStart = formatLocalHour(window[i].dt);
-      const rangeEnd = formatLocalHour(window[j].dt + 3600);
+      while (j + 1 < window6.length && getNotableCategoryKey(window6[j + 1].weatherCode) === cat) j++;
+      const rangeStart = formatLocalHour(window6[i].dt);
+      const rangeEnd = formatLocalHour(window6[j].dt + 3600);
       rangeLines.push(t("notifRangeTemplate", lang, { start: rangeStart, end: rangeEnd, category: t(cat, lang) }));
       i = j + 1;
     }
   }
 
-  const largeBody = [segmentA, segmentB, ...rangeLines].filter(Boolean).join("\n");
-  return { title, body: segmentA, largeBody };
+  // ---- Bölüm 1: günün min/max'ı (İLK izlenim = sayı) ----
+  const daily0 = weather.daily && weather.daily.length > 0 ? weather.daily[0] : null;
+  const highLow = daily0
+    ? t("notifDayHighLowTemplate", lang, { max: String(Math.round(daily0.tempMax)), min: String(Math.round(daily0.tempMin)) })
+    : "";
+
+  const largeBody = [highLow, window2Label, segmentB, ...rangeLines].filter(Boolean).join("\n");
+  // Collapsed görünüm kısa ve sayısal kalsın — merak uyandırıp genişletmeye/uygulamaya iter.
+  return { title, body: highLow || window2Label, largeBody };
 }
 
 export const CHANGE_ALERT_TEMP_THRESHOLD = 5; // °C

@@ -89,6 +89,7 @@ async function executeWeatherRefresh(): Promise<boolean> {
       notifTime: localStorage.getItem('mhd_notif_time') || '08:00',
       notifChangeAlertEnabled: localStorage.getItem('mhd_notif_change_enabled') === 'true',
       lang: (localStorage.getItem('mhd_lang') as LangCode) || 'tr',
+      locationName: location?.name as string | undefined,
     });
 
     console.log('[backgroundTaskService] Hava durumu başarıyla güncellendi.');

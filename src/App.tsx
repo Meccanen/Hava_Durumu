@@ -16,6 +16,8 @@ import {
   hasNotificationPermission, requestNotificationPermission,
   refreshScheduledNotifications,
 } from "./services/notificationService";
+import { LocalNotifications } from '@capacitor/local-notifications';
+import type { ActionPerformed } from '@capacitor/local-notifications';
 import type { WeatherBundle } from "./types";
 import SettingsPanel from "./components/SettingsPanel";
 import WeatherDashboard from "./components/WeatherDashboard";
@@ -147,6 +149,26 @@ export default function App() {
     setUnlockingDetail(null);
     if (granted) setDetailModal(kind);
   };
+
+  // ---- Bildirimden tıklama → deeplink: günlük özet/ani değişim bildirimi
+  // extra.detail="day" taşır; kullanıcı bildirime dokununca bugünün detayı açılır.
+  // Bildirim zaten konum/hava; ödüllü reklam şartı deeplink'te ARANMAZ (reklam
+  // modeli uygulama içi detay tetikleyicilerinde korunur).
+  useEffect(() => {
+    let activeHandle: { remove: () => void } | null = null;
+    const register = async () => {
+      const handle = await LocalNotifications.addListener('localNotificationActionPerformed', (action: ActionPerformed) => {
+        const extra = action.notification.extra as { detail?: string; dayIndex?: number } | undefined;
+        if (extra?.detail === "day") {
+          setDetailDayIndex(extra.dayIndex ?? 0);
+          setDetailModal("day");
+        }
+      });
+      activeHandle = handle;
+    };
+    register();
+    return () => { if (activeHandle) activeHandle.remove(); };
+  }, []);
 
   useEffect(() => {
     showBannerAd();
@@ -325,9 +347,10 @@ export default function App() {
       notifTime,
       notifChangeAlertEnabled,
       lang,
+      locationName: location.name,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weather, notifDailyEnabled, notifTime, notifChangeAlertEnabled, lang]);
+  }, [weather, notifDailyEnabled, notifTime, notifChangeAlertEnabled, lang, location.name]);
 
   // ---- Türetilmiş görünüm verisi ----
   const intlTimezone = location.timezone || "Europe/Istanbul";

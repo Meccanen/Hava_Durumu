@@ -113,6 +113,10 @@ export async function requestNotificationPermission(): Promise<boolean> {
  * değiştirdiğinde) öncekinin üzerine yazar, çoklamaz. `largeBody` verilirse
  * Android'de bildirim genişletildiğinde (BigTextStyle) tam metin gösterilir;
  * `body` her zaman kısa/collapsed görünümde kalır.
+ *
+ * `extra.detail = "day"` deeplink intencedir: kullanıcı bildirime (veya
+ * bildirimin action düğmesine) dokunduğunda App.tsx'teki
+ * localNotificationActionPerformed dinleyicisi bunu "gün detayı" olarak açar.
  */
 export async function scheduleDailySummaryNotification(
   hour: number,
@@ -130,6 +134,7 @@ export async function scheduleDailySummaryNotification(
           body,
           ...(largeBody ? { largeBody } : {}),
           channelId: DAILY_SUMMARY_CHANNEL_ID,
+          extra: { detail: "day", dayIndex: 0 },
           schedule: {
             on: { hour, minute },
             repeats: true,
@@ -159,7 +164,15 @@ export async function cancelDailySummaryNotification(): Promise<void> {
 export async function fireImmediateChangeAlert(title: string, body: string): Promise<void> {
   try {
     await LocalNotifications.schedule({
-      notifications: [{ id: IMMEDIATE_CHANGE_ALERT_ID, title, body, channelId: CHANGE_ALERT_CHANNEL_ID }],
+      notifications: [
+        {
+          id: IMMEDIATE_CHANGE_ALERT_ID,
+          title,
+          body,
+          channelId: CHANGE_ALERT_CHANNEL_ID,
+          extra: { detail: "day", dayIndex: 0 },
+        },
+      ],
     });
   } catch (error) {
     console.error('[notificationService] Ani değişim bildirimi gösterilemedi:', error);
@@ -185,6 +198,7 @@ export async function scheduleFutureChangeAlert(
           title,
           body,
           channelId: CHANGE_ALERT_CHANNEL_ID,
+          extra: { detail: "day", dayIndex: 0 },
           schedule: { at: fireAt, allowWhileIdle: true },
         },
       ],
@@ -220,6 +234,7 @@ export async function refreshScheduledNotifications(
     notifTime: string;
     notifChangeAlertEnabled: boolean;
     lang: LangCode;
+    locationName?: string;
   }
 ): Promise<void> {
   await ensureNotificationChannels(prefs.lang);
@@ -227,7 +242,7 @@ export async function refreshScheduledNotifications(
   // ---- 1) Günlük özet ----
   if (prefs.notifDailyEnabled) {
     const { hour, minute } = parseNotifTime(prefs.notifTime);
-    const { title, body, largeBody } = buildNotificationContent(weather, prefs.notifTime, prefs.lang);
+    const { title, body, largeBody } = buildNotificationContent(weather, prefs.notifTime, prefs.lang, prefs.locationName);
     await scheduleDailySummaryNotification(hour, minute, title, body, largeBody);
   } else {
     await cancelDailySummaryNotification();
