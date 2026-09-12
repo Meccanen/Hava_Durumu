@@ -102,9 +102,10 @@ jobs:
           substitution KMP attribute selection'ı yakalayamıyordu + Groovy DSL
           substitute(module)using(module)'ı DefaultDependencySubstitutions üzerinde
           using() çağırıp build'i bozuyordu; ReportFragment yalnızca -android AAR'ında)
-        working-directory: android
         run: |
-          FIX_GRADLE=android/build.gradle
+          FIX_GRADLE="$GITHUB_WORKSPACE/android/build.gradle"
+          APPDIR="$GITHUB_WORKSPACE/android/app"
+          mkdir -p "$APPDIR"
           if [ ! -f "$FIX_GRADLE" ]; then
               echo "// root build.gradle" > "$FIX_GRADLE"
           fi
