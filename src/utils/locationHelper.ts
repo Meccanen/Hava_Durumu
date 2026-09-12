@@ -50,6 +50,21 @@ export async function checkLocationPermission(): Promise<boolean> {
   return false;
 }
 
+// Boylamdan yaklaşık saat dilimi adı tahmin eder (open-meteo geocoding'de
+// timezone boş/"GMT" geldiğinde ve reverse geocoding'de kullanılır)
+export function guessTimezone(lng: number): string {
+  const offset = Math.round(lng / 15);
+  const MAP: Record<string, string> = {
+    "-12":"Etc/GMT+12","-11":"Pacific/Midway","-10":"Pacific/Honolulu","-9":"America/Anchorage",
+    "-8":"America/Los_Angeles","-7":"America/Denver","-6":"America/Chicago","-5":"America/New_York",
+    "-4":"America/Halifax","-3":"America/Sao_Paulo","-2":"Atlantic/South_Georgia","-1":"Atlantic/Azores",
+    "0":"Europe/London","1":"Europe/Berlin","2":"Europe/Helsinki","3":"Europe/Istanbul",
+    "4":"Asia/Dubai","5":"Asia/Karachi","6":"Asia/Dhaka","7":"Asia/Bangkok",
+    "8":"Asia/Singapore","9":"Asia/Tokyo","10":"Australia/Sydney","11":"Pacific/Noumea","12":"Pacific/Auckland",
+  };
+  return MAP[String(offset)] || "Europe/London";
+}
+
 // Konum koordinatlarını al
 export async function getCurrentPosition(): Promise<{ latitude: number; longitude: number }> {
   if (isNativeAvailable()) {
