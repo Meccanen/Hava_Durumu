@@ -80,55 +80,6 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
-      - name: >-
-          Lifecycle dependency grafiğini dök (desktop KMP varyantını kim çekiyor?)
-          [DEBUG — build'den önce, hangi androidx.lifecycle:lifecycle-runtime
-          varyantının (android / desktop KMP) resolve edildiğini görmek için]
-        working-directory: android
-        # DEBUG amaçlıdır; hata verirse gerçek build'i durdurmasın diye '|| true'.
-        run: |
-          echo ">>> :app — runtime classpath'te görünen TÜM androidx.lifecycle satırları"
-          ./gradlew :app:dependencies --configuration debugRuntimeClasspath 2>&1 \
-            | grep -iE "lifecycle" | sort -u || true
-          echo
-          echo ">>> Lifecycle varyant sürüm bilgisi (lifecycle-runtime desktop mi android mi?)"
-          ./gradlew :app:dependencies --configuration debugRuntimeClasspath 2>&1 \
-            | grep -iE "lifecycle" | grep -iE "\+|->|failed|conflict|desktop|jvm" | sort -u || true
-          echo
-          echo ">>> capacitor-android ('capacitor' core modülü) kendi graph'ı — lifecycle varsa hangi sürüm/varyant?"
-          ./gradlew :capacitor:dependencies --configuration debugRuntimeClasspath 2>&1 \
-            | grep -iE "lifecycle" | sort -u || true
-      - name: >-
-          FIX: Lifecycle desktop KMP varyantını android varyantına substitution et
-          (ReportFragment yalnızca -android AAR'ında; desktop sınıflarının
-          APK'ya girmesi açılışta NoClassDefFoundError üretiyordu)
-        run: |
-          FIX_GRADLE=android/build.gradle
-          if [ ! -f "$FIX_GRADLE" ]; then
-              echo "// root build.gradle" > "$FIX_GRADLE"
-          fi
-          if grep -q "lifecycle-runtime-desktop" "$FIX_GRADLE"; then
-              echo ">>> Lifecycle desktop substitution zaten mevcut, atlandı."
-          else
-              cat >> "$FIX_GRADLE" << 'SUBSTEOF'
-          
-          allprojects {
-              configurations.all {
-                  resolutionStrategy.dependencySubstitution {
-                      substitute module('androidx.lifecycle:lifecycle-runtime-desktop')
-                          using module('androidx.lifecycle:lifecycle-runtime-android:2.8.5')
-                      substitute module('androidx.lifecycle:lifecycle-viewmodel-desktop')
-                          using module('androidx.lifecycle:lifecycle-viewmodel-android:2.8.5')
-                      substitute module('androidx.lifecycle:lifecycle-viewmodel-savedstate-desktop')
-                          using module('androidx.lifecycle:lifecycle-viewmodel-savedstate-android:2.8.5')
-                      substitute module('androidx.lifecycle:lifecycle-common-jvm')
-                          using module('androidx.lifecycle:lifecycle-common:2.8.5')
-                  }
-              }
-          }
-          SUBSTEOF
-              echo ">>> Lifecycle desktop→android substitution eklendi: $FIX_GRADLE"
-          fi
       - name: Android SDK 36'ya güncelle (Play Store zorunluluğu)
         run: |
           cat > android/variables.gradle << 'GRADLEEOF'
