@@ -10,22 +10,23 @@ import {
  * ============================================================================
  * ARKA PLAN HAVA VERİSİ GÜNCELLEME SERVİSİ
  * ============================================================================
- * Her 30 dakikada bir arka planda hava durumu verisi çekip localStorage'a
+ * Her saat başında arka planda hava durumu verisi çekip localStorage'a
  * yazar (weatherService.ts içindeki cache'e). Böylece uygulama açıldığında
  * veya bildirim tetiklendiğinde her zaman güncel veri kullanılabilir.
  *
  * Akış:
  * 1. BackgroundFetch.configure() ile varsayılan periyodik event kayıt edilir
- *    (minimumFetchInterval: 15 dk — OS'un izin verdiği en sık aralık).
+ *    (minimumFetchInterval: 60 dk — OS'un izin verdiği minimum 15 dk, biz
+ *    saat başı istiyoruz).
  * 2. Her event tetiklendiğinde, localStorage'daki son çekim zamanına bakılır:
- *    - 30 dk'dan kısa süre önce çekilmişse: sadece finish() çağrılır (API
+ *    - 60 dk'dan kısa süre önce çekilmişse: sadece finish() çağrılır (API
  *      çağrılmaz, gereksiz maliyet önlenir).
- *    - 30 dk veya daha eskiyse: fetchWeatherBundle() ile yeni veri çekilir
+ *    - 60 dk veya daha eskiyse: fetchWeatherBundle() ile yeni veri çekilir
  *      ve cache'e yazılır.
  * 3. App.tsx, periyodik kontrolde cache'deki veriyi okur ve state'i günceller.
  *
  * NOT: Free tier API limiti (100K/ay) göz önünde bulundurularak, her event'te
- * API çağrısı YAPILMAZ. Sadece 30 dk dolmuşsa çekilir. Günde max ~48 çağrı.
+ * API çağrısı YAPILMAZ. Sadece 60 dk dolmuşsa çekilir. Günde max ~24 çağrı.
  *
  * SINIRLAMA: Bu JS callback'i yalnızca WebView hayatta kaldığında çalışır
  * (uygulama önde→arkada). Kullanıcı uygulamayı recents'ten tamamen kapatırsa
@@ -53,7 +54,7 @@ async function executeWeatherRefresh(): Promise<boolean> {
       return false;
     }
 
-    // Son çekimden bu yana 30 dk geçtiyse devam et, geçmediyse atla.
+    // Son çekimden bu yana 60 dk geçtiyse devam et, geçmediyse atla.
     // Cache'in mevcut konuma ait olduğunu da kontrol et.
     const cached = getCachedWeather(location.latitude, location.longitude);
     if (cached && Date.now() - cached.fetchedAt < CACHE_MAX_AGE_MS) {
@@ -93,7 +94,7 @@ export async function initBackgroundTask(): Promise<void> {
   try {
     const status = await BackgroundFetch.configure(
       {
-        minimumFetchInterval: 15, // OS'un izin verdiği minimum (15 dk)
+        minimumFetchInterval: 60, // saat başı tazeleme istiyoruz (OS minimumu 15 dk — ipucudur, garanti değil)
         stopOnTerminate: false,   // Native job terminasyon sonrası takvimde kalır
         startOnBoot: true,        // Cihaz yeniden açıldığında native job yeniden başlar
         forceAlarmManager: false, // WorkManager kullan (pil tasarruflu)

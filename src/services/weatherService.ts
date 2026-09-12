@@ -22,13 +22,13 @@ const HOURLY_WINDOW = 24; // Ana sayfa saatlik şeridi — sadece önümüzdeki 
  * ============================================================================
  * YEREL CACHE (localStorage)
  * ============================================================================
- * Arka plan task servisi (backgroundTaskService.ts) her 30 dakikada bir hava
+ * Arka plan task servisi (backgroundTaskService.ts) saat başı hava
  * verisini çekip bu cache'e yazar; App.tsx ise açılışta/periyodik kontrolde
  * buradan okur. Böylece arka planda geçen sürede bile veri güncel kalır.
  */
 const CACHE_KEY = 'mhd_weather_cache';
 const CACHE_LOC_KEY = 'mhd_weather_cache_loc'; // cache'in ait olduğu konum
-export const CACHE_MAX_AGE_MS = 30 * 60 * 1000; // 30 dakika
+export const CACHE_MAX_AGE_MS = 60 * 60 * 1000; // 60 dakika (saat başı tazeleme)
 
 function cacheLocationMatches(latitude?: number, longitude?: number): boolean {
   if (latitude === undefined || longitude === undefined) return true; // konum istenmemişse geç
@@ -64,7 +64,7 @@ export function getCachedWeather(latitude?: number, longitude?: number): Weather
   }
 }
 
-/** Cache'deki verinin 30 dakika içinde taze olup olmadığını kontrol eder. */
+/** Cache'deki verinin 60 dakika içinde taze olup olmadığını kontrol eder. */
 export function isCacheFresh(latitude?: number, longitude?: number): boolean {
   const cached = getCachedWeather(latitude, longitude);
   if (!cached) return false;

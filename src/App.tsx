@@ -82,7 +82,7 @@ export default function App() {
   const [weatherError, setWeatherError] = useState<string | null>(null);
 
   const loadWeather = async () => {
-    // Önce cache'den oku — arka plan task'ı 30 dk'da bir tazeliyor. Cache
+    // Önce cache'den oku — arka plan task'ı saat başı tazeliyor. Cache
     // tazeyse VE mevcut konumun verisiyse API çağrısı yapma (hem hız hem
     // Free tier limiti için).
     const cached = getCachedWeather(location.latitude, location.longitude);
@@ -108,7 +108,7 @@ export default function App() {
 
   useEffect(() => { loadWeather(); }, [location.latitude, location.longitude, lang]);
 
-  // ---- Arka plan veri yenileme (30 dk) ----
+  // ---- Arka plan veri yenileme (saat başı) ----
   // BackgroundFetch, uygulama arka plandayken hava verisini cache'e yazar.
   // Uygulama öne geldiğinde veya düzenli aralıkla burada cache'den okuyoruz.
   useEffect(() => {
