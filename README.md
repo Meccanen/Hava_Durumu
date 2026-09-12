@@ -1,17 +1,37 @@
-# Meccanen Hava Durumu (Reklamsız)
+# Meccanen Hava Durumu
 
-Meccanen Namaz Vakti'nin çerçevesi (tema sistemi, dil desteği, konum yönetimi,
-Destekçi Rozeti) korunarak oluşturulan reklamsız hava durumu uygulaması.
-Saatlik ve 7 günlük tahmin **Open-Meteo**'dan alınıyor (key gerektirmiyor,
-namaz vaktindeki geocoding ile aynı sağlayıcı ailesi).
+Meccanen Namaz Vakti'nin çerçevesi (tema sistemi, dil desteği, konum yönetimi)
+korunarak oluşturulan hava durumu uygulaması.
+Mevcut durum ve 3 günlük tahmin **WeatherAPI.com**'dan alınıyor (tek API çağrısı:
+mevcut durum + saatlik/günlük tahmin + astronomi + hava kalitesi + uyarılar + UV).
+API anahtarı `VITE_WEATHER_API_KEY` ortam değişkeniyle verilir — açık-kaynak
+istemci derlendiğinde bu key pakete girer, bu yüzden ücretsiz katman limitlerine
+dikkat edilmelidir (detaylar: `src/services/weatherService.ts`).
 
-⚠️ Open-Meteo'nun ücretsiz katmanı **ticari olmayan kullanım** için ve
-günde 10.000 / saatte 5.000 / dakikada 600 çağrı limitli
-(https://open-meteo.com/en/terms). Kullanıcı sayısı büyüdükçe (kabaca birkaç
-bin aktif kullanıcı sonrası) bu limitlere takılma ihtimali var — o noktada
-ya paid plan (Standard $29/ay, 1M çağrı/ay) ya da kendi VPS'inde bir cache
-proxy (n8n ile şehir başına 10-15 dakikada bir Open-Meteo'yu çağırıp
-sonucu önbelleğe alan basit bir endpoint) kurulması gerekecek.
+## Ortam değişkenleri (.env)
+
+Geliştirmede kullanılan tüm değişkenler `.env.example` dosyasında açıklamalarıyla
+birlikte listelenmiştir:
+
+1. `.env.example` dosyasını kopyalayıp `.env` olarak kaydet: `cp .env.example .env`
+2. Değerleri doldur (WeatherAPI anahtarı + AdMob birim ID'leri).
+3. `npm run dev` ile başlat.
+
+CI build'leri (GitHub Actions) bu değerleri `.env` dosyasından değil, repo
+**Secrets**'larından okur (bkz. `.github/workflows/build-apk.yml`). Şu secret'lar
+gerekli:
+
+| Secret | Gerekli | Açıklama |
+|---|---|---|
+| `WEATHER_API_KEY` | zorunlu | WeatherAPI.com API anahtarı |
+| `ADMOB_BANNER_ID` | zorunlu | AdMob banner birim ID |
+| `ADMOB_REWARDED_INTERSTITIAL_ID` | zorunlu | AdMob ödüllü geçiş reklamı birim ID |
+| `ADMOB_APP_ID` | zorunlu | AdMob uygulama ID (native Manifest'e enjekte edilir) |
+| `ADMOB_TEST_DEVICE_IDS` | opsiyonel | virgülle ayrılmış test cihaz ID'leri |
+| `KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` | opsiyonel (imzalı AAB için) | Release keystore |
+| `DEBUG_KEYSTORE_BASE64` | opsiyonel | Sabit debug keystore (test cihaz ID'sinin build'ler arası değişmemesi için önerilir) |
+
+Bunları repo **Settings → Secrets and variables → Actions** altına ekle.
 
 ## GitHub'a yükleme sırası
 
