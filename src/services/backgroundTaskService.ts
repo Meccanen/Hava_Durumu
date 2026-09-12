@@ -5,6 +5,8 @@ import {
   getCachedWeather,
   CACHE_MAX_AGE_MS,
 } from './weatherService';
+import { refreshScheduledNotifications } from './notificationService';
+import type { LangCode } from '../utils/i18n';
 
 /**
  * ============================================================================
@@ -21,9 +23,17 @@ import {
  * 2. Her event tetiklendiğinde, localStorage'daki son çekim zamanına bakılır:
  *    - 60 dk'dan kısa süre önce çekilmişse: sadece finish() çağrılır (API
  *      çağrılmaz, gereksiz maliyet önlenir).
- *    - 60 dk veya daha eskiyse: fetchWeatherBundle() ile yeni veri çekilir
- *      ve cache'e yazılır.
+ *    - 60 dk veya daha eskiyse: fetchWeatherBundle() ile yeni veri çekilir,
+ *      cache'e yazılır VE bildirimler güncel veriyle tazelenir.
  * 3. App.tsx, periyodik kontrolde cache'deki veriyi okur ve state'i günceller.
+ *
+ * Bildirim tazelemesi: fetchWeatherBundle başarılı olunca
+ * refreshScheduledNotifications() çağrılır (günlük özet + ani değişim
+ * slotları da aynı ortak fonksiyonla tazelenir). Böylece kullanıcı
+ * uygulamayı günlerce açmasa bile 08:00 günlük özet bildirimi BAYAT veri
+ * göstermez; her saat başı arka planda veri güncellendiğinde bildirim
+ * içeriği de güncellenir. Tercihler (açık/kapalı, saat, dil) localStorage'dan
+ * okunur.
  *
  * NOT: Free tier API limiti (100K/ay) göz önünde bulundurularak, her event'te
  * API çağrısı YAPILMAZ. Sadece 60 dk dolmuşsa çekilir. Günde max ~24 çağrı.
@@ -68,7 +78,18 @@ async function executeWeatherRefresh(): Promise<boolean> {
     });
 
     // fetchWeatherBundle başarılı çekimi otomatik cache'e yazar.
-    await fetchWeatherBundle(location.latitude, location.longitude);
+    const bundle = await fetchWeatherBundle(location.latitude, location.longitude);
+
+    // Başarılı çekimden sonra bildirimleri taze veriyle güncelle (günlük
+    // özet + ani değişim slotları). Tercihler localStorage'dan okunur:
+    // iki tür de kapalıysa refresh fonksiyonu yalnızca iptal yapar, zararı
+    // olmaz. Dil yoksa varsayılan olarak Türkçe'ye düşer.
+    await refreshScheduledNotifications(bundle, {
+      notifDailyEnabled: localStorage.getItem('mhd_notif_daily_enabled') === 'true',
+      notifTime: localStorage.getItem('mhd_notif_time') || '08:00',
+      notifChangeAlertEnabled: localStorage.getItem('mhd_notif_change_enabled') === 'true',
+      lang: (localStorage.getItem('mhd_lang') as LangCode) || 'tr',
+    });
 
     console.log('[backgroundTaskService] Hava durumu başarıyla güncellendi.');
 

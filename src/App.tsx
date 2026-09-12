@@ -11,13 +11,10 @@ import { initBackgroundTask } from "./services/backgroundTaskService";
 import { requestLocationPermission, getCurrentPosition, guessTimezone } from "./utils/locationHelper";
 import { t, detectLanguage, LangCode } from "./utils/i18n";
 import { formatHour, formatDay } from "./utils/weatherDisplay";
-import { buildNotificationContent, detectUpcomingChanges } from "./utils/notificationBuilder";
 import { showBannerAd, onBannerHeightChange, unlockWithRewardedInterstitial, isRewardedUnlockedThisSession } from "./services/adMobService";
 import {
   hasNotificationPermission, requestNotificationPermission,
-  scheduleDailySummaryNotification, cancelDailySummaryNotification,
-  fireImmediateChangeAlert, scheduleFutureChangeAlert, cancelFutureChangeAlert,
-  FUTURE_CHANGE_ALERT_SLOT_COUNT,
+  refreshScheduledNotifications,
 } from "./services/notificationService";
 import type { WeatherBundle } from "./types";
 import SettingsPanel from "./components/SettingsPanel";
@@ -274,11 +271,6 @@ export default function App() {
 
   useEffect(() => { hasNotificationPermission().then(setNotifPermissionGranted); }, [weather]);
 
-  const parseNotifTime = (time: string): { hour: number; minute: number } => {
-    const [h, m] = time.split(":").map(Number);
-    return { hour: Number.isFinite(h) ? h : 8, minute: Number.isFinite(m) ? m : 0 };
-  };
-
   const handleToggleNotifDaily = async (val: boolean) => {
     if (val) {
       const granted = await requestNotificationPermission();
@@ -286,24 +278,15 @@ export default function App() {
       if (!granted) return; // izin verilmezse toggle açık kalmaz
       localStorage.setItem("mhd_notif_daily_enabled", "true");
       setNotifDailyEnabledState(true);
-      const { hour, minute } = parseNotifTime(notifTime);
-      const { title, body, largeBody } = buildNotificationContent(weather, notifTime, lang);
-      await scheduleDailySummaryNotification(hour, minute, title, body, largeBody);
     } else {
       localStorage.setItem("mhd_notif_daily_enabled", "false");
       setNotifDailyEnabledState(false);
-      await cancelDailySummaryNotification();
     }
   };
 
   const handleChangeNotifTime = async (time: string) => {
     localStorage.setItem("mhd_notif_time", time);
     setNotifTimeState(time);
-    if (notifDailyEnabled) {
-      const { hour, minute } = parseNotifTime(time);
-      const { title, body, largeBody } = buildNotificationContent(weather, time, lang);
-      await scheduleDailySummaryNotification(hour, minute, title, body, largeBody);
-    }
   };
 
   const handleNotifAllowed = async () => {
@@ -316,29 +299,6 @@ export default function App() {
     setShowNotifPrompt(false);
     localStorage.setItem("mhd_notif_prompted", "true");
   };
-
-  // Dil değişirse ve bildirim aktifse, zamanlanmış metni güncel dile göre tazele
-  useEffect(() => {
-    if (!notifDailyEnabled) return;
-    const { hour, minute } = parseNotifTime(notifTime);
-    const { title, body, largeBody } = buildNotificationContent(weather, notifTime, lang);
-    scheduleDailySummaryNotification(hour, minute, title, body, largeBody);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lang]);
-
-  // Hava verisi her yenilendiğinde (uygulama her açıldığında/konum
-  // değiştiğinde) ve bildirim aktifse, tetiklenme zamanı ile "repeats: true"
-  // AYNI KALARAK sadece İÇERİĞİ (2 saatlik + 6 saatlik özet) canlı veriyle
-  // üzerine yazılır. Böylece bildirim her gün kesin tetiklenir (native
-  // repeating alarm), içeriği ise en son uygulamanın açıldığı ana kadar
-  // günceldir — VPS/n8n devreye girene kadarki en iyi çaba çözümü.
-  useEffect(() => {
-    if (!weather || !notifDailyEnabled) return;
-    const { hour, minute } = parseNotifTime(notifTime);
-    const { title, body, largeBody } = buildNotificationContent(weather, notifTime, lang);
-    scheduleDailySummaryNotification(hour, minute, title, body, largeBody);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weather]);
 
   // ---- Ani değişim uyarısı (ileriye dönük, saat-başı hassasiyetli) ----
   const [notifChangeAlertEnabled, setNotifChangeAlertEnabledState] = useState(
@@ -355,53 +315,19 @@ export default function App() {
     setNotifChangeAlertEnabledState(val);
   };
 
-  /**
-   * Her ~23 saatlik slotu yeniden değerlendirir: bir slot için önemli bir
-   * değişim tespit edilirse ve gelecekteyse o saate zamanlanır; şu an/geçmişe
-   * denk geliyorsa (sadece slot 0 için mümkündür — sonraki slotlar hep
-   * gelecektedir) HEMEN gösterilir (aynı gün+slot+başlık için tekrar
-   * göstermemek üzere dedup). Artık geçerli olmayan slotlar iptal edilir.
-   */
-  const refreshChangeAlerts = () => {
-    if (!weather) return;
-    if (!notifChangeAlertEnabled) {
-      for (let i = 0; i < FUTURE_CHANGE_ALERT_SLOT_COUNT; i++) cancelFutureChangeAlert(i);
-      return;
-    }
-    const changes = detectUpcomingChanges(weather, lang);
-    const bySlot = new Map(changes.map((c) => [c.slotIndex, c]));
-
-    for (let i = 0; i < FUTURE_CHANGE_ALERT_SLOT_COUNT; i++) {
-      const change = bySlot.get(i);
-      if (!change) {
-        cancelFutureChangeAlert(i);
-        continue;
-      }
-      if (change.isImmediate) {
-        const dedupeKey = `${new Date().toDateString()}:${i}:${change.title}`;
-        const lastKey = localStorage.getItem("mhd_last_immediate_change_key");
-        if (lastKey !== dedupeKey) {
-          localStorage.setItem("mhd_last_immediate_change_key", dedupeKey);
-          fireImmediateChangeAlert(change.title, change.body);
-        }
-        cancelFutureChangeAlert(i);
-      } else {
-        scheduleFutureChangeAlert(i, change.fireAt, change.title, change.body);
-      }
-    }
-  };
-
-  // Hava verisi her yenilendiğinde veya toggle değiştiğinde tüm slotları tazele.
+  // Bildirimleri TAZELEMEK için tek ortak nokta: günlük özet + ani değişim
+  // slotlarının tamamı refreshScheduledNotifications'ta yönetilir (kanal
+  // oluşturma, içerik üretimi, zamanlama, iptal ve dil-bağımsız dedup dahil).
+  // Hava verisi, dil, iki toggle veya bildirim saati değişince buraya düşer.
   useEffect(() => {
-    refreshChangeAlerts();
+    refreshScheduledNotifications(weather, {
+      notifDailyEnabled,
+      notifTime,
+      notifChangeAlertEnabled,
+      lang,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weather, notifChangeAlertEnabled]);
-
-  // Dil değişirse, zaten zamanlanmış slotların metnini güncel dile göre tazele.
-  useEffect(() => {
-    refreshChangeAlerts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lang]);
+  }, [weather, notifDailyEnabled, notifTime, notifChangeAlertEnabled, lang]);
 
   // ---- Türetilmiş görünüm verisi ----
   const intlTimezone = location.timezone || "Europe/Istanbul";

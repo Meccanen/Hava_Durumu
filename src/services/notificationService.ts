@@ -1,4 +1,8 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { Capacitor } from '@capacitor/core';
+import { t, LangCode } from "../utils/i18n";
+import type { WeatherBundle } from "../types";
+import { buildNotificationContent, detectUpcomingChanges } from "../utils/notificationBuilder";
 
 /**
  * ============================================================================
@@ -14,38 +18,73 @@ import { LocalNotifications } from '@capacitor/local-notifications';
  *   deneysel API'ler KULLANILMIYOR.
  * - Sabit bildirim ID'leri kullanıyoruz (çoklama/yığılma olmasın diye) —
  *   Namaz Vakti'nin "6 sabit ID" pratiğiyle aynı mantık.
+ * - Android 8+ için BİLDİRİM KANALLARI: günlük özet ve ani değişim uyarısı
+ *   ayrı kanallarda (ensureNotificationChannels). Kanal oluşturma yalnızca
+ *   native platformda yapılır; web'de güvenle atlanır.
  *
  * Şu an İKİ tür bildirim destekleniyor:
  *
  * 1) "Günlük özet": sabit saatte her gün TETİKLENMESİ garanti (native
- *    repeating alarm), İÇERİĞİ App.tsx tarafında her hava verisi
- *    yenilendiğinde (uygulama her açıldığında) canlı veriyle üzerine
- *    yazılıyor. `body` kısa/collapsed görünüm, `largeBody` genişletilmiş
- *    (BigTextStyle) tam içerik — Android bildirimi açılınca tam metni
- *    gösterir.
+ *    repeating alarm), İÇERİĞİ her hava verisi yenilendiğinde canlı veriyle
+ *    üzerine yazılıyor. `body` kısa/collapsed görünüm, `largeBody` genişletilmiş
+ *    (BigTextStyle) tam içerik — Android bildirimi açılınca tam metni gösterir.
  *
- * 2) "Ani değişim uyarısı": uygulama her açıldığında önümüzdeki ~23 saatlik
- *    tahmindeki HER ARDIŞIK SAAT ÇİFTİ karşılaştırılır (saat[i] vs
- *    saat[i+1]). Önemli bir fark (≥5°C sıcaklık veya ≥25 puan yağış
- *    ihtimali, iki yönde de) tespit edilirse:
+ * 2) "Ani değişim uyarısı": önümüzdeki ~23 saatlik tahmindeki HER ARDIŞIK SAAT
+ *    ÇİFTİ karşılaştırılır (saat[i] vs saat[i+1]). Önemli bir fark (≥5°C
+ *    sıcaklık veya ≥25 puan yağış ihtimali, iki yönde de) tespit edilirse:
  *    - Değişim "şu an" veya geçmişte kalan bir saate denk geliyorsa HEMEN
  *      gösterilir (fireImmediateChangeAlert)
  *    - Gelecekteki bir saate denk geliyorsa, o saatten TAM 1 SAAT ÖNCESİNE
- *      (saat[i]'nin başlangıcına) zamanlanır (scheduleFutureChangeAlert) —
- *      "gelecek bir saat içinde X olacak" şeklinde önceden haber verir.
- *    Her olası saat dilimi (0-22 arası, ~23 slot) için SABİT bir ID
- *    ayrılmıştır; her yeniden hesaplamada slot ya güncellenir ya da (artık
- *    geçerli değilse) iptal edilir — çoklama/eskimiş bildirim kalmaz.
- *    Bu app-open tetiklemeli, en-iyi-çaba bir çözüm — sürekli arka plan
- *    izleme gerektiren gerçek "ani hava değişikliği" tespiti VPS/n8n + FCM
- *    push ile gelecek (ayrı ve daha sonraki bir adım, bu dosyanın kapsamında
- *    değil).
+ *      zamanlanır (scheduleFutureChangeAlert)
+ *    Her olası saat dilimi (0-22 arası, ~23 slot) için SABİT bir ID ayrılmıştır;
+ *    her yeniden hesaplamada slot ya güncellenir ya da iptal edilir.
+ *
+ * refreshScheduledNotifications(), bu iki türün ORTAK tazeleme noktasıdır:
+ * App.tsx (konum/hava/dil değişince) ve backgroundTaskService (arka planda
+ * veri tazelenince) ikisi de bu fonksiyonu çağırır — böylece bildirim içeriği
+ * uygulama KAPALIYKEN bile güncel kalır (background task çalışıyorsa).
  */
 
 const DAILY_SUMMARY_NOTIFICATION_ID = 9001;
 const IMMEDIATE_CHANGE_ALERT_ID = 9002;
 const FUTURE_CHANGE_ALERT_BASE_ID = 9200; // 9200..9222 arası, saat slotu başına 1 ID
 export const FUTURE_CHANGE_ALERT_SLOT_COUNT = 23;
+
+// Android 8+ kanalları — günlük özet ve ani değişim uyarısı ayrı kanallarda;
+// kullanıcı her kanalın sesi/titreşimi/önceliğini ayrı yönetebilsin diye.
+const DAILY_SUMMARY_CHANNEL_ID = "hava_gunluk_ozet";
+const CHANGE_ALERT_CHANNEL_ID = "hava_degisim_uyari";
+
+let channelsCreated = false;
+
+/**
+ * Android 8+ için bildirim kanallarını oluşturur. Web/canlı geliştirme
+ * ortamında LocalNotifications native değildir; o zaman güvenle atlanır.
+ * Kanal adları oluşturma anındaki dile göre sabitlenir (OS tarafından
+ * cache'lenir); kanal oluşturma bir kez yapılır (channelsCreated guard).
+ */
+export async function ensureNotificationChannels(lang: LangCode = "tr"): Promise<void> {
+  if (channelsCreated || !Capacitor.isNativePlatform()) return;
+  channelsCreated = true;
+  try {
+    await LocalNotifications.createChannel({
+      id: DAILY_SUMMARY_CHANNEL_ID,
+      name: t("notifChannelDaily", lang),
+      description: t("notifChannelDailyDesc", lang),
+      importance: 4,
+      vibration: true,
+    });
+    await LocalNotifications.createChannel({
+      id: CHANGE_ALERT_CHANNEL_ID,
+      name: t("notifChannelChange", lang),
+      description: t("notifChannelChangeDesc", lang),
+      importance: 4,
+      vibration: true,
+    });
+  } catch (error) {
+    console.error('[notificationService] Bildirim kanalları oluşturulamadı:', error);
+  }
+}
 
 export async function hasNotificationPermission(): Promise<boolean> {
   try {
@@ -90,6 +129,7 @@ export async function scheduleDailySummaryNotification(
           title,
           body,
           ...(largeBody ? { largeBody } : {}),
+          channelId: DAILY_SUMMARY_CHANNEL_ID,
           schedule: {
             on: { hour, minute },
             repeats: true,
@@ -119,7 +159,7 @@ export async function cancelDailySummaryNotification(): Promise<void> {
 export async function fireImmediateChangeAlert(title: string, body: string): Promise<void> {
   try {
     await LocalNotifications.schedule({
-      notifications: [{ id: IMMEDIATE_CHANGE_ALERT_ID, title, body }],
+      notifications: [{ id: IMMEDIATE_CHANGE_ALERT_ID, title, body, channelId: CHANGE_ALERT_CHANNEL_ID }],
     });
   } catch (error) {
     console.error('[notificationService] Ani değişim bildirimi gösterilemedi:', error);
@@ -144,6 +184,7 @@ export async function scheduleFutureChangeAlert(
           id: FUTURE_CHANGE_ALERT_BASE_ID + slotIndex,
           title,
           body,
+          channelId: CHANGE_ALERT_CHANNEL_ID,
           schedule: { at: fireAt, allowWhileIdle: true },
         },
       ],
@@ -159,4 +200,71 @@ export async function cancelFutureChangeAlert(slotIndex: number): Promise<void> 
   } catch (error) {
     console.error(`[notificationService] Gelecek değişim uyarısı (slot ${slotIndex}) iptal edilemedi:`, error);
   }
+}
+
+/**
+ * Günlük özet ve ani değişim uyarılarını, verilen tercihlere göre TAZELER.
+ * App.tsx (konum/hava/dil değişince) ve backgroundTaskService (arka planda
+ * veri tazelenince) bu fonksiyonu çağırır — böylece bildirim içeriği
+ * uygulama KAPALIYKEN bile güncel kalır.
+ *
+ * - Günlük özet kapalıysa iptal edilir; açıksa yeni içerikle yeniden planlanır.
+ * - Ani değişim uyarıları kapalıysa tüm slotlar iptal edilir; açıksa her slot
+ *   yeniden değerlendirilir: geçerli değilse iptal, gelecekteyse zamanla,
+ *   şu an/geçmişteyse HEMEN gösterilir (gün+slot bazlı dedup — dil-bağımsız).
+ */
+export async function refreshScheduledNotifications(
+  weather: WeatherBundle | null,
+  prefs: {
+    notifDailyEnabled: boolean;
+    notifTime: string;
+    notifChangeAlertEnabled: boolean;
+    lang: LangCode;
+  }
+): Promise<void> {
+  await ensureNotificationChannels(prefs.lang);
+
+  // ---- 1) Günlük özet ----
+  if (prefs.notifDailyEnabled) {
+    const { hour, minute } = parseNotifTime(prefs.notifTime);
+    const { title, body, largeBody } = buildNotificationContent(weather, prefs.notifTime, prefs.lang);
+    await scheduleDailySummaryNotification(hour, minute, title, body, largeBody);
+  } else {
+    await cancelDailySummaryNotification();
+  }
+
+  // ---- 2) Ani değişim uyarıları ----
+  if (!prefs.notifChangeAlertEnabled || !weather) {
+    for (let i = 0; i < FUTURE_CHANGE_ALERT_SLOT_COUNT; i++) await cancelFutureChangeAlert(i);
+    return;
+  }
+
+  const changes = detectUpcomingChanges(weather, prefs.lang);
+  const bySlot = new Map(changes.map((c) => [c.slotIndex, c]));
+
+  for (let i = 0; i < FUTURE_CHANGE_ALERT_SLOT_COUNT; i++) {
+    const change = bySlot.get(i);
+    if (!change) {
+      await cancelFutureChangeAlert(i);
+      continue;
+    }
+    if (change.isImmediate) {
+      // Dil-bağımsız dedup: gün+slot. Başlık DİL içerdiği için anahtara hiç
+      // konulmaz — dil değişince aynı uyarı tekrar ateşlenmesin.
+      const dedupeKey = `${new Date().toDateString()}:${i}`;
+      const lastKey = localStorage.getItem("mhd_last_immediate_change_key");
+      if (lastKey !== dedupeKey) {
+        localStorage.setItem("mhd_last_immediate_change_key", dedupeKey);
+        await fireImmediateChangeAlert(change.title, change.body);
+      }
+      await cancelFutureChangeAlert(i);
+    } else {
+      await scheduleFutureChangeAlert(i, change.fireAt, change.title, change.body);
+    }
+  }
+}
+
+function parseNotifTime(time: string): { hour: number; minute: number } {
+  const [h, m] = time.split(":").map(Number);
+  return { hour: Number.isFinite(h) ? h : 8, minute: Number.isFinite(m) ? m : 0 };
 }
