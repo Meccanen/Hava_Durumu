@@ -80,6 +80,84 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+      - name: >-
+          TESPİT: Lifecycle dependency graph'ını dök (build'den önce — desktop KMP
+          varyantını kim çekiyor? ReportFragment yalnızca -android AAR'ında; desktop
+          sınıflarının APK'ya girmesi açılışta NoClassDefFoundError üretiyor)
+        working-directory: android
+        run: |
+          echo ">>> :app :app:dependencies debugRuntimeClasspath — lifecycle satırları"
+          ./gradlew :app:dependencies --configuration debugRuntimeClasspath 2>&1 \
+            | grep -iE "lifecycle" | sort -u || true
+          echo
+          echo ">>> :capacitor :capacitor:dependencies debugRuntimeClasspath — lifecycle satırları"
+          ./gradlew :capacitor:dependencies --configuration debugRuntimeClasspath 2>&1 \
+            | grep -iE "lifecycle" | sort -u || true
+          echo
+          echo ">>> TÜM modüllerde 'desktop' KMP varyantı resolve ediliyor mu? (cadence/desktop/jvm uyarıları)"
+          ./gradlew :app:dependencies --configuration debugRuntimeClasspath 2>&1 \
+            | grep -iE "desktop|jvm|cycle|conflict" | sort -u || true
+      - name: >-
+          FIX: Lifecycle desktop/jvm KMP modüllerini APK'dan hiç resolve etme (exclude —
+          substitution KMP attribute selection'ı yakalayamıyordu + Groovy DSL
+          substitute(module)using(module)'ı DefaultDependencySubstitutions üzerinde
+          using() çağırıp build'i bozuyordu; ReportFragment yalnızca -android AAR'ında)
+        working-directory: android
+        run: |
+          FIX_GRADLE=android/build.gradle
+          if [ ! -f "$FIX_GRADLE" ]; then
+              echo "// root build.gradle" > "$FIX_GRADLE"
+          fi
+          # İTERATİF + idempotent: substitution kalıntısı varsa temizle.
+          sed -i '/SUBSTEOF/,/SUBSTEOF/d' "$FIX_GRADLE" 2>/dev/null || true
+          grep -vE "substitute|SUBSTEOF|resolutionStrategy.dependencySubstitution" \
+            "$FIX_GRADLE" > "$FIX_GRADLE.tmp" && mv "$FIX_GRADLE.tmp" "$FIX_GRADLE"
+          # exclude bloğu: desktop/jvm lifecycle modülü hiç resolve edilmesin.
+          if ! grep -q "lifecycle-runtime-desktop" "$FIX_GRADLE"; then
+              cat >> "$FIX_GRADLE" << 'FIXEOF'
+          allprojects {
+              configurations.all {
+                  exclude group: 'androidx.lifecycle', module: 'lifecycle-runtime-desktop'
+                  exclude group: 'androidx.lifecycle', module: 'lifecycle-runtime-jvm'
+                  exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-desktop'
+                  exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-jvm'
+                  exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-savedstate-desktop'
+                  exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel-savedstate-jvm'
+                  exclude group: 'androidx.lifecycle', module: 'lifecycle-common-desktop'
+                  exclude group: 'androidx.lifecycle', module: 'lifecycle-common-jvm'
+              }
+          }
+          FIXEOF
+              echo ">>> Lifecycle desktop/jvm exclude eklendi (ReportFragment APK'dan dışlandı)"
+          else
+              echo ">>> Lifecycle exclude zaten mevcut, atlandı."
+          fi
+          # app/build.gradle'a: ReportFragment içeren -android AAR'larını explicit ekle.
+          APP_GRADLE=android/app/build.gradle
+          if [ -f "$APP_GRADLE" ] && ! grep -q "lifecycle-runtime-android" "$APP_GRADLE"; then
+              cat >> "$APP_GRADLE" << 'APPEOF'
+          dependencies {
+              implementation 'androidx.lifecycle:lifecycle-runtime-android:2.8.5'
+              implementation 'androidx.lifecycle:lifecycle-process:2.8.5'
+              implementation 'androidx.lifecycle:lifecycle-common:2.8.5'
+          }
+          APPEOF
+              echo ">>> -android lifecycle AAR'ları app'e explicit eklendi (ReportFragment garantili)"
+          else
+              echo ">>> -android lifecycle AAR'ları zaten mevcut, atlandı."
+          fi
+      - name: >-
+          FIX-ONAY: Lifecycle graph'ı fatal/build hatası ÜRETMEDEN doğrula (exclude sonrası
+          desktop/jvm HÂLÂ görünüyor mu? — Substitution'sız bırakınca da APK yeşil build olmalı)
+        working-directory: android
+        run: |
+          echo ">>> :app — lifecycle (exclude sonrası debugRuntimeClasspath)"
+          ./gradlew :app:dependencies --configuration debugRuntimeClasspath 2>&1 \
+            | grep -iE "lifecycle" | sort -u || true
+          echo
+          echo ">>> desktop/jvm HÂLÂ var mı (olması ENDİŞE — exclude çalışmadı demektir)?"
+          ./gradlew :app:dependencies --configuration debugRuntimeClasspath 2>&1 \
+            | grep -iE "desktop|jvm|lifecycle-common-jvm" | sort -u || true
       - name: Android SDK 36'ya güncelle (Play Store zorunluluğu)
         run: |
           cat > android/variables.gradle << 'GRADLEEOF'
