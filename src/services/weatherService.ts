@@ -222,6 +222,10 @@ export async function fetchWeatherBundle(
     sunset: sunsetToday,
     popToday: today.day.daily_chance_of_rain ?? 0,
     uvIndex: Math.round(data.current.uv),
+    windGustMps: Math.round((data.current.gust_kph / 3.6) * 10) / 10,
+    visibilityKm: Math.round(data.current.vis_km * 10) / 10,
+    cloudPct: data.current.cloud,
+    precipMm: Math.round(data.current.precip_mm * 10) / 10,
   };
 
   const allHours = data.forecast.forecastday.flatMap((d: WeatherApiForecastDay) => d.hour);
@@ -238,6 +242,12 @@ export async function fetchWeatherBundle(
       weatherCode: toWmoCode(h.condition.code),
       pop: (h.chance_of_rain ?? 0) / 100,
       isDay: h.is_day === 1,
+      precipMm: Math.round(h.precip_mm * 10) / 10,
+      chanceOfSnow: (h.chance_of_snow ?? 0) / 100,
+      windGustMps: Math.round((h.gust_kph / 3.6) * 10) / 10,
+      visibilityKm: Math.round(h.vis_km * 10) / 10,
+      cloudPct: h.cloud,
+      uvIndex: Math.round(h.uv),
     }));
 
   const daily: DailyForecast[] = data.forecast.forecastday.map((d: WeatherApiForecastDay) => ({
@@ -246,6 +256,14 @@ export async function fetchWeatherBundle(
     tempMax: Math.round(d.day.maxtemp_c),
     weatherCode: toWmoCode(d.day.condition.code),
     pop: (d.day.daily_chance_of_rain ?? 0) / 100,
+    precipMm: Math.round(d.day.totalprecip_mm * 10) / 10,
+    snowCm: Math.round(d.day.totalsnow_cm * 10) / 10,
+    maxWindMps: Math.round((d.day.maxwind_kph / 3.6) * 10) / 10,
+    uvIndex: Math.round(d.day.uv),
+    chanceOfSnow: (d.day.daily_chance_of_snow ?? 0) / 100,
+    visibilityKm: Math.round(d.day.avgvis_km * 10) / 10,
+    sunrise: astroTimeToUnix(d.date, d.astro.sunrise) ?? undefined,
+    sunset: astroTimeToUnix(d.date, d.astro.sunset) ?? undefined,
   }));
 
   // Her gün için TAM 24 saatlik döküm (nem/basınç/rüzgar dahil) —
@@ -261,6 +279,12 @@ export async function fetchWeatherBundle(
       humidity: h.humidity,
       pressure: Math.round(h.pressure_mb),
       windSpeed: Math.round((h.wind_kph / 3.6) * 10) / 10,
+      precipMm: Math.round(h.precip_mm * 10) / 10,
+      chanceOfSnow: (h.chance_of_snow ?? 0) / 100,
+      windGustMps: Math.round((h.gust_kph / 3.6) * 10) / 10,
+      visibilityKm: Math.round(h.vis_km * 10) / 10,
+      cloudPct: h.cloud,
+      uvIndex: Math.round(h.uv),
     }))
   );
 

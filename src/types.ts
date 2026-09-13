@@ -19,6 +19,10 @@ export interface CurrentWeather {
   sunset: number;  // unix ts
   popToday: number; // bugünkü maksimum yağış olasılığı (0-100)
   uvIndex: number;
+  windGustMps?: number; // rüzgar hamlesi (m/s)
+  visibilityKm?: number; // görüş mesafesi
+  cloudPct?: number; // bulut kapalılığı %
+  precipMm?: number; // o anki yağış miktarı
 }
 
 export interface AirQuality {
@@ -56,6 +60,12 @@ export interface HourlyForecast {
   humidity?: number;
   pressure?: number;
   windSpeed?: number; // m/s
+  precipMm?: number; // yağış miktarı (mm)
+  chanceOfSnow?: number; // kar olasılığı (0-1)
+  windGustMps?: number; // rüzgar hamlesi (m/s)
+  visibilityKm?: number; // görüş mesafesi (km)
+  cloudPct?: number; // bulut kapalılığı %
+  uvIndex?: number; // o saatteki UV
 }
 
 export interface DailyForecast {
@@ -64,6 +74,14 @@ export interface DailyForecast {
   tempMax: number;
   weatherCode: number;
   pop: number; // yağış olasılığı (0-1)
+  precipMm?: number; // toplam yağış (mm)
+  snowCm?: number; // toplam kar (cm)
+  maxWindMps?: number; // günün en yüksek rüzgarı (m/s)
+  uvIndex?: number; // günün en yüksek UV'si
+  chanceOfSnow?: number; // kar olasılığı (0-1)
+  visibilityKm?: number; // ortalama görüş (km)
+  sunrise?: number; // unix ts (gün bazında)
+  sunset?: number; // unix ts (gün bazında)
 }
 
 export interface WeatherBundle {

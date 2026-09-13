@@ -20,6 +20,12 @@ export interface WeatherApiDay {
   mintemp_c: number;
   condition: { code: number; text: string };
   daily_chance_of_rain: number;
+  daily_chance_of_snow: number;
+  totalprecip_mm: number;
+  totalsnow_cm: number;
+  maxwind_kph: number;
+  avgvis_km: number;
+  uv: number;
 }
 
 export interface WeatherApiHour {
@@ -28,9 +34,15 @@ export interface WeatherApiHour {
   feelslike_c: number;
   condition: { code: number; text: string };
   chance_of_rain: number;
+  chance_of_snow: number;
+  precip_mm: number;
   humidity: number;
   pressure_mb: number;
   wind_kph: number;
+  gust_kph: number;
+  vis_km: number;
+  cloud: number;
+  uv: number;
   is_day: number; // 1|0
 }
 
@@ -58,6 +70,10 @@ export interface WeatherApiCurrent {
   condition: { code: number; text: string };
   is_day: number; // 1|0
   uv: number;
+  gust_kph: number;
+  vis_km: number;
+  cloud: number;
+  precip_mm: number;
   air_quality?: WeatherApiAirQuality;
 }
 

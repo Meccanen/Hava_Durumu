@@ -1,18 +1,22 @@
 import React from "react";
-import { X, AlertTriangle, Droplets, Wind, Gauge, Umbrella } from "lucide-react";
+import {
+  X, AlertTriangle, Droplets, Wind, Gauge, Umbrella, Eye, Snowflake,
+  Cloud, SunMedium,
+} from "lucide-react";
 import { THEMES, ThemeKey, themeBgToOpaqueRgba } from "../theme";
 import { getWeatherMapping } from "../utils/weatherHelper";
 import { isLikelyCorruptedAlertText } from "../utils/notificationBuilder";
 import { getAqiInfo, getUvBand, getMoonPhaseKey } from "../utils/weatherDisplay";
 import { t, LangCode } from "../utils/i18n";
-import type { WeatherBundle } from "../types";
+import type { WeatherBundle, HourlyForecast } from "../types";
 
-export type DetailKind = "alert" | "uv" | "aq" | "moon" | "day";
+export type DetailKind = "alert" | "uv" | "aq" | "moon" | "day" | "hour";
 
 interface DetailModalProps {
   weather: WeatherBundle;
   detailModal: DetailKind | null;
   detailDayIndex: number;
+  detailHourIndex: number;
   onClose: () => void;
   th: typeof THEMES[ThemeKey];
   lang: LangCode;
@@ -21,7 +25,7 @@ interface DetailModalProps {
 }
 
 export default function DetailModal({
-  weather, detailModal, detailDayIndex, onClose,
+  weather, detailModal, detailDayIndex, detailHourIndex, onClose,
   th, lang, formatHour, formatDay,
 }: DetailModalProps) {
   if (!detailModal) return null;
@@ -40,6 +44,9 @@ export default function DetailModal({
             {detailModal === "moon" && t("moonPhase", lang)}
             {detailModal === "day" && t("dayDetailTitle", lang, {
               day: detailDayIndex === 0 ? t("wxToday", lang) : formatDay(weather.daily[detailDayIndex]?.dt ?? 0),
+            })}
+            {detailModal === "hour" && weather.hourly[detailHourIndex] && t("hourDetailTitle", lang, {
+              time: formatHour(weather.hourly[detailHourIndex].dt),
             })}
           </h3>
           <button onClick={onClose} className={th.textMuted}>
@@ -143,19 +150,56 @@ export default function DetailModal({
         {detailModal === "day" && weather.dailyHourly[detailDayIndex] && (() => {
           const day = weather.daily[detailDayIndex];
           const dayMap = day ? getWeatherMapping(day.weatherCode, true) : null;
+          const hours = weather.dailyHourly[detailDayIndex];
+          const maxUvHour = hours.reduce<HourlyForecast | null>(
+            (best, h) => (h.uvIndex !== undefined && (best === null || h.uvIndex > (best.uvIndex ?? -1)) ? h : best), null);
+          const maxGustHour = hours.reduce<HourlyForecast | null>(
+            (best, h) => (h.windGustMps !== undefined && (best === null || h.windGustMps > (best.windGustMps ?? -1)) ? h : best), null);
+          const expectedPrecip = hours.reduce((s, h) => s + (h.precipMm ?? 0), 0);
           return (
             <div className="space-y-1 -mx-2">
               {day && (
-                <div className={`rounded-2xl border p-3.5 mb-2 flex items-center gap-3 ${th.header}`}>
-                  {dayMap && <dayMap.iconName size={28} className={`${dayMap.colorClass} shrink-0`} />}
-                  <div className="flex-1">
-                    <p className={`text-sm font-bold ${th.textPrimary}`}>
-                      {t("dayDetailHighLow", lang, { max: String(day.tempMax), min: String(day.tempMin) })}
-                    </p>
-                    <p className={`text-xs flex items-center gap-1.5 ${day.pop > 0.1 ? th.accent2 : th.textMuted}`}>
-                      <Umbrella size={12} />
-                      {t("dayDetailRainChance", lang, { p: String(Math.round(day.pop * 100)) })}
-                    </p>
+                <div className={`rounded-2xl border p-3.5 mb-2 space-y-2 ${th.header}`}>
+                  <div className="flex items-center gap-3">
+                    {dayMap && <dayMap.iconName size={28} className={`${dayMap.colorClass} shrink-0`} />}
+                    <div className="flex-1">
+                      <p className={`text-sm font-bold ${th.textPrimary}`}>
+                        {t("dayDetailHighLow", lang, { max: String(day.tempMax), min: String(day.tempMin) })}
+                      </p>
+                      <p className={`text-xs flex items-center gap-1.5 ${day.pop > 0.1 ? th.accent2 : th.textMuted}`}>
+                        <Umbrella size={12} />
+                        {t("dayDetailRainChance", lang, { p: String(Math.round(day.pop * 100)) })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 border-t text-xs">
+                    {maxUvHour && maxUvHour.uvIndex !== undefined && (
+                      <div className="flex items-center gap-1.5">
+                        <SunMedium size={13} className={th.accent2} />
+                        <span className={`font-semibold ${th.textPrimary}`}>{maxUvHour.uvIndex}</span>
+                        <span className={th.textMuted}>{formatHour(maxUvHour.dt)}</span>
+                      </div>
+                    )}
+                    {day.maxWindMps !== undefined && maxGustHour && (
+                      <div className="flex items-center gap-1.5">
+                        <Wind size={13} className={th.accent2} />
+                        <span className={`font-semibold ${th.textPrimary}`}>{maxGustHour.windGustMps ?? day.maxWindMps} m/s</span>
+                        <span className={th.textMuted}>{formatHour(maxGustHour.dt)}</span>
+                      </div>
+                    )}
+                    {expectedPrecip > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <Droplets size={13} className={th.accent2} />
+                        <span className={`font-semibold ${th.textPrimary}`}>{(Math.round(expectedPrecip * 10) / 10).toFixed(1)} mm</span>
+                        <span className={th.textMuted}>{t("hrPrecipMm", lang)}</span>
+                      </div>
+                    )}
+                    {(day.chanceOfSnow ?? 0) > 0.05 && (
+                      <div className="flex items-center gap-1.5">
+                        <Snowflake size={13} className={th.accent2} />
+                        <span className={`font-semibold ${th.textPrimary}`}>{Math.round((day.chanceOfSnow ?? 0) * 100)}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -164,19 +208,27 @@ export default function DetailModal({
                 <span className="w-4 shrink-0" />
                 <span className="w-9 shrink-0 text-right">{t("wxColTemp", lang)}</span>
                 <span className="w-12 shrink-0 text-right">{t("wxColRain", lang)}</span>
+                <span className="w-8 shrink-0 text-right">{t("wxUvIndex", lang)}</span>
                 <span className="w-12 shrink-0 text-right">{t("wxColHumidity", lang)}</span>
                 <span className="w-14 shrink-0 text-right">{t("wxColWind", lang)}</span>
                 <span className="flex-1 text-right">{t("wxColPressure", lang)}</span>
               </div>
               {weather.dailyHourly[detailDayIndex].map((h, idx) => {
                 const m = getWeatherMapping(h.weatherCode, h.isDay);
+                const uvBand = h.uvIndex !== undefined ? getUvBand(h.uvIndex) : null;
                 return (
                   <div key={idx} className={`flex items-center gap-2 px-2 py-2 text-xs rounded-xl ${th.cardHover}`}>
                     <span className={`w-11 shrink-0 font-medium ${th.textPrimary}`}>{formatHour(h.dt)}</span>
                     <m.iconName size={16} className={`${m.colorClass} shrink-0`} />
                     <span className={`w-9 shrink-0 text-right font-semibold ${th.textPrimary}`}>{h.temperature}°</span>
-                    <span className={`flex items-center gap-0.5 w-12 shrink-0 justify-end ${h.pop > 0.1 ? th.accent2 : th.textMuted}`}>
-                      <Umbrella size={11} />{Math.round(h.pop * 100)}%
+                    <span className={`flex flex-col items-end w-12 shrink-0 ${h.pop > 0.1 ? th.accent2 : th.textMuted}`}>
+                      <span>{Math.round(h.pop * 100)}%</span>
+                      {h.precipMm !== undefined && h.precipMm > 0 && (
+                        <span className="text-[9px]">{(Math.round(h.precipMm * 10) / 10).toFixed(1)}mm</span>
+                      )}
+                    </span>
+                    <span className={`w-8 shrink-0 text-right font-semibold ${uvBand?.colorClass ?? th.textMuted}`}>
+                      {h.uvIndex !== undefined ? h.uvIndex : "—"}
                     </span>
                     <span className={`flex items-center gap-0.5 w-12 shrink-0 justify-end ${th.textMuted}`}>
                       <Droplets size={11} />{h.humidity ?? "—"}%
@@ -193,6 +245,45 @@ export default function DetailModal({
             </div>
           );
         })()}
+      {detailModal === "hour" && weather.hourly[detailHourIndex] && (() => {
+          const h = weather.hourly[detailHourIndex];
+          const m = getWeatherMapping(h.weatherCode, h.isDay);
+          const uvBand = h.uvIndex !== undefined ? getUvBand(h.uvIndex) : null;
+          const cells: { icon: React.ReactNode; label: string; value: string; valueClass?: string }[] = [
+            { icon: <SunMedium size={14} className={th.accent2} />, label: t("wxFeelsLike", lang), value: `${h.feelsLike}°`, valueClass: th.textPrimary },
+            { icon: <Umbrella size={14} className={th.accent2} />, label: t("wxPop", lang), value: h.pop > 0 ? `${Math.round(h.pop * 100)}%` : "—", valueClass: h.pop > 0.25 ? th.accent2 : undefined },
+            { icon: <Droplets size={14} className={th.accent2} />, label: t("hrPrecipMm", lang), value: h.precipMm !== undefined && h.precipMm > 0 ? `${(Math.round(h.precipMm * 10) / 10).toFixed(1)}mm` : "—", valueClass: undefined },
+            { icon: <Cloud size={14} className={th.accent2} />, label: t("hrCloud", lang), value: h.cloudPct !== undefined ? `%${h.cloudPct}` : "—", valueClass: undefined },
+            { icon: <SunMedium size={14} className={th.accent2} />, label: t("wxUvIndex", lang), value: h.uvIndex !== undefined ? String(h.uvIndex) : "—", valueClass: uvBand?.colorClass },
+            { icon: <Snowflake size={14} className={th.accent2} />, label: t("hrSnowChance", lang), value: (h.chanceOfSnow ?? 0) > 0.05 ? `%${Math.round((h.chanceOfSnow ?? 0) * 100)}` : "—", valueClass: undefined },
+            { icon: <Wind size={14} className={th.accent2} />, label: t("wxWind", lang), value: h.windSpeed !== undefined ? `${h.windSpeed} m/s` : "—", valueClass: undefined },
+            { icon: <Wind size={14} className={th.accent2} />, label: t("hrGust", lang), value: h.windGustMps !== undefined ? `${h.windGustMps} m/s` : "—", valueClass: undefined },
+            { icon: <Droplets size={14} className={th.accent2} />, label: t("wxHumidity", lang), value: h.humidity !== undefined ? `%${h.humidity}` : "—", valueClass: undefined },
+            { icon: <Gauge size={14} className={th.accent2} />, label: t("wxPressure", lang), value: h.pressure !== undefined ? String(h.pressure) : "—", valueClass: undefined },
+            { icon: <Eye size={14} className={th.accent2} />, label: t("wxVisibility", lang), value: h.visibilityKm !== undefined ? `${h.visibilityKm} km` : "—", valueClass: undefined },
+          ];
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <m.iconName size={40} className={m.colorClass} />
+                <div>
+                  <p className={`text-3xl font-bold font-mono ${th.textPrimary}`}>{h.temperature}°</p>
+                  <p className={`text-sm capitalize font-medium ${th.textSecondary}`}>{t(m.descKey, lang)}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {cells.map((c, i) => (
+                  <div key={i} className={`rounded-xl border p-2.5 flex flex-col items-center gap-1 ${th.header}`}>
+                    {c.icon}
+                    <p className={`text-sm font-bold ${c.valueClass ?? th.textPrimary}`}>{c.value}</p>
+                    <p className={`text-[10px] leading-tight ${th.textMuted}`}>{c.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
       </div>
     </div>
   );

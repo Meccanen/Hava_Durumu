@@ -135,14 +135,16 @@ export default function App() {
   // koşullu hale getirilecek.
   const [bannerHeight, setBannerHeight] = useState(0);
 
-  // ---- Ödüllü reklamla açılan detay ekranları (UV / Hava Kalitesi / Ay Evresi / Uyarı / Gün) ----
+  // ---- Ödüllü reklamla açılan detay ekranları (UV / Hava Kalitesi / Ay Evresi / Uyarı / Gün / Saat) ----
   const [detailModal, setDetailModal] = useState<DetailKind | null>(null);
   const [detailDayIndex, setDetailDayIndex] = useState<number>(0);
+  const [detailHourIndex, setDetailHourIndex] = useState<number>(0);
   const [unlockingDetail, setUnlockingDetail] = useState<string | null>(null);
 
-  const handleOpenDetail = async (kind: DetailKind, dayIndex?: number) => {
-    const unlockKey = kind === "day" ? `day-${dayIndex}` : kind;
-    if (dayIndex !== undefined) setDetailDayIndex(dayIndex);
+  const handleOpenDetail = async (kind: DetailKind, index?: number) => {
+    const unlockKey = kind === "day" || kind === "hour" ? `${kind}-${index ?? 0}` : kind;
+    if (kind === "day" && index !== undefined) setDetailDayIndex(index);
+    if (kind === "hour" && index !== undefined) setDetailHourIndex(index);
     if (isRewardedUnlockedThisSession()) { setDetailModal(kind); return; }
     setUnlockingDetail(unlockKey);
     const granted = await unlockWithRewardedInterstitial();
@@ -522,6 +524,7 @@ export default function App() {
           weather={weather}
           detailModal={detailModal}
           detailDayIndex={detailDayIndex}
+          detailHourIndex={detailHourIndex}
           onClose={() => setDetailModal(null)}
           th={th}
           lang={lang}

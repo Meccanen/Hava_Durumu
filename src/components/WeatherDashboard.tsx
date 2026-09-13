@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { motion } from "motion/react";
 import {
   AlertTriangle, ChevronsDown, Droplets, Wind, Umbrella, Gauge,
-  Sunrise, Sunset, SunMedium, Leaf, Moon,
+  Sunrise, Sunset, SunMedium, Leaf, Moon, Eye, Cloud,
 } from "lucide-react";
 import { THEMES, ThemeKey } from "../theme";
 import { getWeatherMapping } from "../utils/weatherHelper";
@@ -103,6 +103,24 @@ export default function WeatherDashboard({
             <div className="flex items-center gap-1.5"><Sunrise size={15} className={th.accent3} />{formatHour(weather.current.sunrise)}</div>
             <div className="flex items-center gap-1.5"><Sunset size={15} className={th.accent3} />{formatHour(weather.current.sunset)}</div>
           </div>
+
+          <div className={`flex items-center justify-center gap-5 pt-4 text-xs ${th.header}`}>
+            <div className="flex items-center gap-1.5">
+              <Eye size={15} className={th.accent3} />
+              <span className={`font-semibold ${th.textPrimary}`}>{weather.current.visibilityKm !== undefined ? `${weather.current.visibilityKm} km` : "—"}</span>
+              <span className={th.textMuted}>{t("wxVisibility", lang)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Cloud size={15} className={th.accent3} />
+              <span className={`font-semibold ${th.textPrimary}`}>{weather.current.cloudPct !== undefined ? `%${weather.current.cloudPct}` : "—"}</span>
+              <span className={th.textMuted}>{t("hrCloud", lang)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Wind size={15} className={th.accent3} />
+              <span className={`font-semibold ${th.textPrimary}`}>{weather.current.windGustMps !== undefined ? `${weather.current.windGustMps} m/s` : "—"}</span>
+              <span className={th.textMuted}>{t("hrGust", lang)}</span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -153,21 +171,45 @@ export default function WeatherDashboard({
         <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
           {weather.hourly.map((h, i) => {
             const m = getWeatherMapping(h.weatherCode, h.isDay);
+            const isUnlocking = unlockingDetail === `hour-${i}`;
             return (
-              <motion.div key={i}
+              <motion.button key={i}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: Math.min(i, 10) * 0.03 }}
-                className={`flex flex-col items-center gap-1.5 rounded-2xl border px-3.5 py-3.5 min-w-[68px] shadow-sm ${th.card} ${th.cardHover} transition-colors`}>
+                onClick={() => onOpenDetail("hour", i)}
+                disabled={unlockingDetail !== null}
+                className={`relative flex flex-col items-center gap-1.5 rounded-2xl border px-3.5 py-3.5 min-w-[68px] shadow-sm active:scale-[0.97] transition-transform ${th.card} ${th.cardHover}`}>
+                {isUnlocking && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/20">
+                    <div className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${th.accent}`} />
+                  </div>
+                )}
+                {h.pop > 0.15 && !isUnlocking && (
+                  <span className={`absolute top-1.5 right-1.5 w-14 text-right text-[10px] ${th.accent2}`}>
+                    {Math.round(h.pop * 100)}%
+                  </span>
+                )}
                 <span className={`text-xs font-semibold ${i === 0 ? th.accent : th.textSecondary}`}>
                   {i === 0 ? t("wxNow", lang) : formatHour(h.dt)}
                 </span>
                 <m.iconName size={22} className={m.colorClass} />
                 <span className="text-sm font-bold">{h.temperature}°</span>
-                {h.pop > 0.15 && (
-                  <span className={`text-[10px] ${th.accent2}`}>{Math.round(h.pop * 100)}%</span>
+                {i === 0 && (
+                  <span className={`w-14 text-center text-[10px] leading-tight ${th.textMuted}`}>
+                    {h.uvIndex !== undefined && (
+                      <span className="flex items-center justify-center gap-0.5 text-amber-500">
+                        <SunMedium size={9} /><b>{h.uvIndex}</b>
+                      </span>
+                    )}
+                    {h.precipMm !== undefined && h.precipMm > 0 && (
+                      <span className="flex items-center justify-center gap-0.5">
+                        <Droplets size={9} />{(Math.round(h.precipMm * 10) / 10).toFixed(1)}mm
+                      </span>
+                    )}
+                  </span>
                 )}
-              </motion.div>
+              </motion.button>
             );
           })}
         </div>
