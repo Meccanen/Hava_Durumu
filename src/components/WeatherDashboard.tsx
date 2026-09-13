@@ -10,6 +10,7 @@ import { getAqiInfo, getUvBand, getMoonPhaseKey, formatVisibility, formatFullDat
 import { t, LangCode } from "../utils/i18n";
 import type { WeatherBundle } from "../types";
 import type { DetailKind } from "./DetailModal";
+import WeatherAmbience from "./WeatherAmbience";
 
 interface WeatherDashboardProps {
   weather: WeatherBundle;
@@ -31,6 +32,14 @@ export default function WeatherDashboard({
     [weather]
   );
 
+  // Açık/az bulutlu gündüzde güneş parlaması, açık gecede ay parlaması.
+  const codeGlow = useMemo(() => {
+    const c = weather.current.weatherCode;
+    if (c === 0 || c === 1) return weather.current.isDay ? "sun" : "moon";
+    if (c === 2) return weather.current.isDay ? "sun" : "moon";
+    return null;
+  }, [weather]);
+
   return (
     <>
       {/* Hero kart — namaz vaktindeki saat kartıyla aynı ağırlıkta (rounded-3xl, shadow-2xl, gradient sayı) */}
@@ -49,6 +58,7 @@ export default function WeatherDashboard({
 
       <section className={`${th.card} border rounded-3xl p-6 sm:p-7 transition-all duration-300 shadow-2xl relative overflow-hidden`}>
         <div className={`pointer-events-none absolute inset-0 bg-gradient-to-b ${currentMapping.bgClass}`} />
+        <WeatherAmbience code={weather.current.weatherCode} isDay={weather.current.isDay} />
 
         <div className="relative flex flex-col items-center">
           <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-1 ${th.textMuted}`}>
@@ -61,6 +71,17 @@ export default function WeatherDashboard({
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="relative mb-1"
           >
+            {codeGlow && codeGlow === "sun" && (
+              <div className="absolute inset-0">
+                <div className={`w-sun-halo ${currentMapping.colorClass}`} />
+                <div className={`w-sun-rays ${currentMapping.colorClass}`} />
+              </div>
+            )}
+            {codeGlow && codeGlow === "moon" && (
+              <div className="absolute inset-0">
+                <div className={`w-moon-halo ${currentMapping.colorClass}`} />
+              </div>
+            )}
             <div className={`absolute inset-0 blur-2xl opacity-40 ${currentMapping.colorClass}`}>
               <currentMapping.iconName size={72} />
             </div>

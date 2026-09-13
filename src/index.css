@@ -52,3 +52,107 @@ html.font-scale-xlarge { font-size: 134%; }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ============================================================================
+   HERO HAVA ANİMASYONLARI
+   Gün/Ay parlaması, yağmur/kar/tane efektleri, süzülen bulutlar, yıldızlar,
+   şimşek flaşı. Hepsi CSS keyframe'li — GPU dostu (transform/opacity).
+   Karar (Tailwind JIT) bu sınıfları DERLEMEZ, bu yüzden tüm görsel kurallar
+   ham CSS olarak burada tutuluyor; JS tarafı yalnızca position/zamanı inline
+   style ile verir.
+   ============================================================================ */
+
+@keyframes wSunPulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.25); }
+}
+.w-sun-halo {
+  position: absolute; inset: -26px; border-radius: 9999px;
+  background: radial-gradient(circle, currentColor 0%, transparent 70%);
+  animation: wSunPulse 4s ease-in-out infinite;
+}
+
+@keyframes wSpinSlow {
+  to { transform: rotate(360deg); }
+}
+.w-sun-rays {
+  position: absolute; inset: -44px; border-radius: 9999px;
+  border: 2px dashed currentColor; opacity: 0.35;
+  animation: wSpinSlow 26s linear infinite;
+}
+
+@keyframes wMoonPulse {
+  0%, 100% { opacity: 0.28; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+}
+.w-moon-halo {
+  position: absolute; inset: -22px; border-radius: 9999px;
+  background: radial-gradient(circle, currentColor 0%, transparent 72%);
+  animation: wMoonPulse 5.5s ease-in-out infinite;
+}
+
+@keyframes wStarTwinkle {
+  0%, 100% { opacity: 0.12; transform: scale(0.6); }
+  50% { opacity: 1; transform: scale(1); }
+}
+.w-star {
+  position: absolute; width: 3px; height: 3px; border-radius: 9999px;
+  background: #fff; animation: wStarTwinkle ease-in-out infinite;
+}
+
+@keyframes wPrecipFall {
+  0% { top: -12%; opacity: 0; }
+  10% { opacity: 0.9; }
+  88% { opacity: 0.9; }
+  100% { top: 114%; opacity: 0; }
+}
+.w-drop {
+  position: absolute; top: -12%; border-radius: 9999px;
+  background: linear-gradient(to bottom, rgba(148, 197, 253, 0.3), rgba(191, 219, 254, 0.95));
+  transform: rotate(16deg);
+  animation: wPrecipFall linear infinite;
+}
+.w-snow {
+  position: absolute; top: -12%; border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+  animation: wPrecipFall linear infinite;
+}
+
+@keyframes wBolt {
+  0%, 88%, 100% { opacity: 0; }
+  89% { opacity: 0.85; }
+  91% { opacity: 0.12; }
+  93% { opacity: 0.6; }
+  95% { opacity: 0; }
+}
+.w-flash {
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 20%, rgba(244, 244, 248, 0.9), rgba(191, 219, 254, 0.35));
+  animation: wBolt 6s linear infinite;
+}
+
+@keyframes wCloudDrift {
+  0% { left: -48%; opacity: 0; }
+  15% { opacity: 0.55; }
+  80% { opacity: 0.55; }
+  100% { left: 112%; opacity: 0; }
+}
+.w-cloud {
+  position: absolute; border-radius: 9999px;
+  background: rgba(226, 232, 240, 0.14);
+  filter: blur(8px);
+  animation: wCloudDrift linear infinite;
+}
+
+@keyframes wHaze {
+  0%, 100% { transform: translateX(-6%); }
+  50% { transform: translateX(6%); }
+}
+.w-haze {
+  position: absolute; inset: -12% -18%;
+  background: radial-gradient(ellipse at 30% 40%, rgba(226, 232, 240, 0.16), transparent 60%),
+              radial-gradient(ellipse at 75% 60%, rgba(226, 232, 240, 0.12), transparent 55%);
+  filter: blur(10px);
+  animation: wHaze 16s ease-in-out infinite;
+}
