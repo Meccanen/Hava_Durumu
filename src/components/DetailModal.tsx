@@ -172,32 +172,35 @@ export default function DetailModal({
                       </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 border-t text-xs">
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t text-center">
                     {maxUvHour && maxUvHour.uvIndex !== undefined && (
-                      <div className="flex items-center gap-1.5">
-                        <SunMedium size={13} className={th.accent2} />
+                      <div className="flex flex-col items-center gap-1 min-w-0">
+                        <SunMedium size={16} className={th.accent2} />
                         <span className={`font-semibold ${th.textPrimary}`}>{maxUvHour.uvIndex}</span>
-                        <span className={th.textMuted}>{formatHour(maxUvHour.dt)}</span>
+                        <span className={`text-[10px] ${th.textMuted}`}>{formatHour(maxUvHour.dt)}</span>
+                        <span className={`w-full text-[10px] leading-tight break-words ${th.textMuted}`}>{t("wxUvIndex", lang)}</span>
                       </div>
                     )}
                     {day.maxWindMps !== undefined && maxGustHour && (
-                      <div className="flex items-center gap-1.5">
-                        <Wind size={13} className={th.accent2} />
+                      <div className="flex flex-col items-center gap-1 min-w-0">
+                        <Wind size={16} className={th.accent2} />
                         <span className={`font-semibold ${th.textPrimary}`}>{maxGustHour.windGustMps ?? day.maxWindMps} m/s</span>
-                        <span className={th.textMuted}>{formatHour(maxGustHour.dt)}</span>
+                        <span className={`text-[10px] ${th.textMuted}`}>{formatHour(maxGustHour.dt)}</span>
+                        <span className={`w-full text-[10px] leading-tight break-words ${th.textMuted}`}>{t("hrGust", lang)}</span>
                       </div>
                     )}
                     {expectedPrecip > 0 && (
-                      <div className="flex items-center gap-1.5">
-                        <Droplets size={13} className={th.accent2} />
+                      <div className="flex flex-col items-center gap-1 min-w-0">
+                        <Droplets size={16} className={th.accent2} />
                         <span className={`font-semibold ${th.textPrimary}`}>{(Math.round(expectedPrecip * 10) / 10).toFixed(1)} mm</span>
-                        <span className={th.textMuted}>{t("hrPrecipMm", lang)}</span>
+                        <span className={`w-full text-[10px] leading-tight break-words ${th.textMuted}`}>{t("hrPrecipMm", lang)}</span>
                       </div>
                     )}
                     {(day.chanceOfSnow ?? 0) > 0.05 && (
-                      <div className="flex items-center gap-1.5">
-                        <Snowflake size={13} className={th.accent2} />
+                      <div className="flex flex-col items-center gap-1 min-w-0">
+                        <Snowflake size={16} className={th.accent2} />
                         <span className={`font-semibold ${th.textPrimary}`}>{Math.round((day.chanceOfSnow ?? 0) * 100)}%</span>
+                        <span className={`w-full text-[10px] leading-tight break-words ${th.textMuted}`}>{t("hrSnowChance", lang)}</span>
                       </div>
                     )}
                   </div>
@@ -256,7 +259,6 @@ export default function DetailModal({
             { icon: <Cloud size={14} className={th.accent2} />, label: t("hrCloud", lang), value: h.cloudPct !== undefined ? `%${h.cloudPct}` : "—", valueClass: undefined },
             { icon: <SunMedium size={14} className={th.accent2} />, label: t("wxUvIndex", lang), value: h.uvIndex !== undefined ? String(h.uvIndex) : "—", valueClass: uvBand?.colorClass },
             { icon: <Snowflake size={14} className={th.accent2} />, label: t("hrSnowChance", lang), value: (h.chanceOfSnow ?? 0) > 0.05 ? `%${Math.round((h.chanceOfSnow ?? 0) * 100)}` : "—", valueClass: undefined },
-            { icon: <Wind size={14} className={th.accent2} />, label: t("wxWind", lang), value: h.windSpeed !== undefined ? `${h.windSpeed} m/s` : "—", valueClass: undefined },
             { icon: <Wind size={14} className={th.accent2} />, label: t("hrGust", lang), value: h.windGustMps !== undefined ? `${h.windGustMps} m/s` : "—", valueClass: undefined },
             { icon: <Droplets size={14} className={th.accent2} />, label: t("wxHumidity", lang), value: h.humidity !== undefined ? `%${h.humidity}` : "—", valueClass: undefined },
             { icon: <Gauge size={14} className={th.accent2} />, label: t("wxPressure", lang), value: h.pressure !== undefined ? String(h.pressure) : "—", valueClass: undefined },
