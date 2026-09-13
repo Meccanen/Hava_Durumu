@@ -22,6 +22,13 @@ export function formatDay(dt: number, timezone: string | undefined, lang: LangCo
   }).format(new Date(dt * 1000));
 }
 
+// Hero üstünde görünen tam tarih satırı (ör. "Pazartesi, 14 Eylül").
+export function formatFullDate(dt: number, timezone: string | undefined, lang: LangCode): string {
+  return new Intl.DateTimeFormat(intlLocaleOf(lang), {
+    weekday: "long", day: "numeric", month: "long", timeZone: timezone || "Europe/Istanbul",
+  }).format(new Date(dt * 1000));
+}
+
 // WeatherAPI'nin current.vis_km alanı çoğu şehirde/gözlem istasyonunda 10 km
 // tavanda döner ("10 km'den fazla" → 10.0). Sabit bir "10.0 km" göstermek
 // kullanıcıya yanıltıcı/donanım-aslı geliyordu; tavan değerini "10+" olarak

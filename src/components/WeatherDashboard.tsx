@@ -2,11 +2,11 @@ import { useMemo } from "react";
 import { motion } from "motion/react";
 import {
   AlertTriangle, ChevronsDown, Droplets, Wind, Umbrella, Gauge,
-  Sunrise, Sunset, SunMedium, Leaf, Moon, Eye, Cloud,
+  Sunrise, Sunset, SunMedium, Leaf, Moon, Eye, Cloud, Clock, CalendarDays,
 } from "lucide-react";
 import { THEMES, ThemeKey } from "../theme";
 import { getWeatherMapping } from "../utils/weatherHelper";
-import { getAqiInfo, getUvBand, getMoonPhaseKey, formatVisibility } from "../utils/weatherDisplay";
+import { getAqiInfo, getUvBand, getMoonPhaseKey, formatVisibility, formatFullDate } from "../utils/weatherDisplay";
 import { t, LangCode } from "../utils/i18n";
 import type { WeatherBundle } from "../types";
 import type { DetailKind } from "./DetailModal";
@@ -51,6 +51,10 @@ export default function WeatherDashboard({
         <div className={`pointer-events-none absolute inset-0 bg-gradient-to-b ${currentMapping.bgClass}`} />
 
         <div className="relative flex flex-col items-center">
+          <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-1 ${th.textMuted}`}>
+            {formatFullDate(Math.floor(Date.now() / 1000), undefined, lang)}
+          </p>
+
           <motion.div
             initial={{ opacity: 0, scale: 0.8, y: -8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -71,7 +75,18 @@ export default function WeatherDashboard({
           </div>
           <p className={`text-sm sm:text-base font-medium ${th.textSecondary} mt-1 capitalize`}>{t(currentMapping.descKey, lang)}</p>
 
-          <div className={`mt-5 w-full p-4 rounded-2xl border-2 ${th.prayerActive} flex items-center justify-center gap-2 shadow-lg`}>
+          <div className="flex items-center gap-2 mt-1.5 text-xs font-semibold">
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border ${th.header} ${th.accent2}`}>
+              <ChevronsDown size={12} className="rotate-180" />
+              {weather.daily[0]?.tempMax ?? weather.current.temperature}°
+            </span>
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border ${th.header} ${th.textMuted}`}>
+              <ChevronsDown size={12} />
+              {weather.daily[0]?.tempMin ?? weather.current.apparentTemperature}°
+            </span>
+          </div>
+
+          <div className={`mt-4 w-full p-4 rounded-2xl border-2 ${th.prayerActive} flex items-center justify-center gap-2 shadow-lg`}>
             <span className="text-sm font-semibold uppercase tracking-wide opacity-80">{t("wxFeelsLike", lang)}</span>
             <span className="text-xl font-mono font-extrabold">{weather.current.apparentTemperature}°</span>
           </div>
@@ -170,11 +185,15 @@ export default function WeatherDashboard({
 
       {/* Saatlik tahmin */}
       <section>
-        <p className={`text-xs font-bold uppercase tracking-wide mb-2.5 px-1 ${th.textMuted}`}>{t("wxHourlyTitle", lang)}</p>
+        <div className="flex items-center gap-1.5 mb-2.5 px-1">
+          <Clock size={13} className={th.textMuted} />
+          <p className={`text-xs font-bold uppercase tracking-wide ${th.textMuted}`}>{t("wxHourlyTitle", lang)}</p>
+        </div>
         <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
           {weather.hourly.map((h, i) => {
             const m = getWeatherMapping(h.weatherCode, h.isDay);
             const isUnlocking = unlockingDetail === `hour-${i}`;
+            const isNow = i === 0;
             return (
               <motion.button key={i}
                 initial={{ opacity: 0, y: 10 }}
@@ -182,7 +201,7 @@ export default function WeatherDashboard({
                 transition={{ duration: 0.35, delay: Math.min(i, 10) * 0.03 }}
                 onClick={() => onOpenDetail("hour", i)}
                 disabled={unlockingDetail !== null}
-                className={`relative flex flex-col items-center gap-1.5 rounded-2xl border px-3.5 py-3.5 min-w-[68px] shadow-sm active:scale-[0.97] transition-transform ${th.card} ${th.cardHover}`}>
+                className={`relative flex flex-col items-center gap-1.5 rounded-2xl border px-3.5 py-3.5 min-w-[68px] shadow-sm active:scale-[0.97] transition-transform ${isNow ? th.prayerActive : `${th.card} ${th.cardHover}`}`}>
                 {isUnlocking && (
                   <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/20">
                     <div className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${th.accent}`} />
@@ -193,12 +212,12 @@ export default function WeatherDashboard({
                     {Math.round(h.pop * 100)}%
                   </span>
                 )}
-                <span className={`text-xs font-semibold ${i === 0 ? th.accent : th.textSecondary}`}>
-                  {i === 0 ? t("wxNow", lang) : formatHour(h.dt)}
+                <span className={`text-xs font-semibold ${isNow ? th.accent : th.textSecondary}`}>
+                  {isNow ? t("wxNow", lang) : formatHour(h.dt)}
                 </span>
                 <m.iconName size={22} className={m.colorClass} />
                 <span className="text-sm font-bold">{h.temperature}°</span>
-                {i === 0 && (
+                {isNow && (
                   <span className={`w-14 text-center text-[10px] leading-tight ${th.textMuted}`}>
                     {h.uvIndex !== undefined && (
                       <span className="flex items-center justify-center gap-0.5 text-amber-500">
@@ -218,9 +237,12 @@ export default function WeatherDashboard({
         </div>
       </section>
 
-      {/* 7 günlük tahmin */}
+      {/* Günlük tahmin */}
       <section className={`${th.card} border rounded-3xl overflow-hidden shadow-xl`}>
-        <p className={`text-xs font-bold uppercase tracking-wide px-4 pt-4 pb-1 ${th.textMuted}`}>{t("wxDailyTitle", lang)}</p>
+        <div className="flex items-center gap-1.5 px-4 pt-4 pb-1">
+          <CalendarDays size={13} className={th.textMuted} />
+          <p className={`text-xs font-bold uppercase tracking-wide ${th.textMuted}`}>{t("wxDailyTitle", lang)}</p>
+        </div>
         <div className={`divide-y ${isLightTheme ? "divide-black/5" : "divide-white/5"}`}>
           {weather.daily.map((d, i) => {
             const m = getWeatherMapping(d.weatherCode, true);
