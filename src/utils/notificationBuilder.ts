@@ -197,8 +197,30 @@ export interface UpcomingChangeAlert {
   slotIndex: number; // hourly[] içindeki i (saat[i] -> saat[i+1] geçişi)
   fireAt: Date; // saat[i]'nin başlangıcı ("bir önceki saat diliminin başı")
   isImmediate: boolean; // fireAt şimdi veya geçmişteyse true
+  dayIndex: number; // değişimin gerçekleştiği günün daily[] index'i (deeplink için)
   title: string;
   body: string;
+}
+
+/** Tür değişimini başlıkta gösterilecek bir emojiye çevirir. */
+function changeEmoji(kind: "warmer" | "cooler" | "rainUp" | "rainDown"): string {
+  if (kind === "warmer") return "🔥";
+  if (kind === "cooler") return "❄️";
+  if (kind === "rainUp") return "🌧️";
+  return "☀️"; // rainDown: yağmur kesiliyor
+}
+
+/** Unix saniyeyi, daily[]'deki hangi güne denk geldiğiyle eşleştirir (bulunamazsa 0). */
+function findDayIndexForTime(weather: WeatherBundle, tsSec: number): number {
+  if (!weather.daily || weather.daily.length === 0) return 0;
+  const targetStart = new Date(tsSec * 1000);
+  targetStart.setHours(0, 0, 0, 0);
+  const match = weather.daily.findIndex((d) => {
+    const dayStart = new Date(d.dt * 1000);
+    dayStart.setHours(0, 0, 0, 0);
+    return dayStart.getTime() === targetStart.getTime();
+  });
+  return match >= 0 ? match : 0;
 }
 
 /**
@@ -207,6 +229,9 @@ export interface UpcomingChangeAlert {
  * bir uyarı üretir — birden fazla uyarı aynı anda dönebilir. Uyarı, değişimin
  * gerçekleştiği saatten (i+1) TAM 1 SAAT ÖNCESİ (saat[i]'nin başlangıcı) için
  * hesaplanır; bu an geçmişte kaldıysa `isImmediate: true` ile işaretlenir.
+ * Başlık somut bilgi taşır: değişim türü emojisi + gerçekleştiği saat + sayı
+ * (derece farkı veya yağmur ihtimali değişimi). Body, değişimin etkili olduğu
+ * dinamik saat penceresinde hissedilen sıcaklığı + öneriyi gösterir.
  */
 export function detectUpcomingChanges(weather: WeatherBundle, lang: LangCode): UpcomingChangeAlert[] {
   const hourly = weather.hourly;
@@ -242,16 +267,32 @@ export function detectUpcomingChanges(weather: WeatherBundle, lang: LangCode): U
       kind === "cooler" ? "notifChangeTitleCooler" :
       kind === "rainUp" ? "notifChangeTitleRainUp" : "notifChangeTitleRainDown";
 
-    const feel = t(getTempFeelKey(h1.temperature), lang);
+    const whenStr = formatLocalHour(h1.dt);
+    const feel = t(getTempFeelKey(h1.feelsLike ?? h1.temperature), lang);
     const tip = t(getConditionTipKey(h1.weatherCode, h1.isDay, h1.feelsLike), lang);
+    const startStr = formatLocalHour(h1.dt);
+    const endStr = formatLocalHour(h1.dt + 3600);
+
+    let title: string;
+    if (kind === "warmer" || kind === "cooler") {
+      const diff = String(Math.abs(Math.round(tempDiff)));
+      title = `${changeEmoji(kind)} ${t(titleKey, lang, { time: whenStr, diff })}`;
+    } else {
+      const from = String(Math.round(h0.pop * 100));
+      const to = String(Math.round(h1.pop * 100));
+      title = `${changeEmoji(kind)} ${t(titleKey, lang, { time: whenStr, from, to })}`;
+    }
+
+    const body = t("notifTimeWindowTemplate", lang, { start: startStr, end: endStr, feel, tip });
     const fireAt = new Date(h0.dt * 1000);
 
     results.push({
       slotIndex: i,
       fireAt,
       isImmediate: fireAt.getTime() <= now,
-      title: t(titleKey, lang),
-      body: `${t("notifChangeUpcomingLabel", lang)} ${feel} ${tip}`,
+      dayIndex: findDayIndexForTime(weather, h1.dt),
+      title,
+      body,
     });
   }
 

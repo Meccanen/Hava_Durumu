@@ -161,7 +161,7 @@ export async function cancelDailySummaryNotification(): Promise<void> {
  * tek seferlik bir bildirim gösterir. Sabit ID kullanıldığı için art arda
  * tetiklenirse yığılmaz.
  */
-export async function fireImmediateChangeAlert(title: string, body: string): Promise<void> {
+export async function fireImmediateChangeAlert(title: string, body: string, dayIndex: number): Promise<void> {
   try {
     await LocalNotifications.schedule({
       notifications: [
@@ -170,7 +170,7 @@ export async function fireImmediateChangeAlert(title: string, body: string): Pro
           title,
           body,
           channelId: CHANGE_ALERT_CHANNEL_ID,
-          extra: { detail: "day", dayIndex: 0 },
+          extra: { detail: "day", dayIndex },
         },
       ],
     });
@@ -188,7 +188,8 @@ export async function scheduleFutureChangeAlert(
   slotIndex: number,
   fireAt: Date,
   title: string,
-  body: string
+  body: string,
+  dayIndex: number
 ): Promise<void> {
   try {
     await LocalNotifications.schedule({
@@ -198,7 +199,7 @@ export async function scheduleFutureChangeAlert(
           title,
           body,
           channelId: CHANGE_ALERT_CHANNEL_ID,
-          extra: { detail: "day", dayIndex: 0 },
+          extra: { detail: "day", dayIndex },
           schedule: { at: fireAt, allowWhileIdle: true },
         },
       ],
@@ -270,11 +271,11 @@ export async function refreshScheduledNotifications(
       const lastKey = localStorage.getItem("mhd_last_immediate_change_key");
       if (lastKey !== dedupeKey) {
         localStorage.setItem("mhd_last_immediate_change_key", dedupeKey);
-        await fireImmediateChangeAlert(change.title, change.body);
+        await fireImmediateChangeAlert(change.title, change.body, change.dayIndex);
       }
       await cancelFutureChangeAlert(i);
     } else {
-      await scheduleFutureChangeAlert(i, change.fireAt, change.title, change.body);
+      await scheduleFutureChangeAlert(i, change.fireAt, change.title, change.body, change.dayIndex);
     }
   }
 }
