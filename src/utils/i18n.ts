@@ -543,7 +543,7 @@ const tr: Record<string, string> = {
   hourDetailTitle: "Saat {time} — Detaylı Rapor",
   hrPrecipMm: "Yağış (mm)",
   hrSnowChance: "Kar",
-  hrGust: "Hamle",
+  hrGust: "Rüzgâr Hızı",
   hrCloud: "Bulut",
   wxRefresh: "Yenile",
   wxLoading: "Hava durumu yükleniyor…",

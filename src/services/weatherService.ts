@@ -229,8 +229,15 @@ export async function fetchWeatherBundle(
   };
 
   const allHours = data.forecast.forecastday.flatMap((d: WeatherApiForecastDay) => d.hour);
-  const nowTs = Date.now() / 1000;
-  let startIdx = allHours.findIndex((h) => toUnix(h.time) >= nowTs);
+  // "Şimdi" uyumu: API'nin hour[] dizisi her saatin başını temsil eder (ör. 14:00).
+  // nowTs ise o anın tam saniyesi (ör. 14:47). `>= nowTs` ile bakılırsa AKIM SAATİN
+  // kendisi hariç bırakılır ve şerit bir sonraki saatten (15:00) başlar — o
+  // dilime "Şimdi" yazılınca ana kart (canlı current) ile 1 saatlik kayma
+  // oluşuyordu. Bu yüzden saat dilimi başlangıcına göre eşleştiriyoruz.
+  const now = new Date();
+  now.setMinutes(0, 0, 0);
+  const currentHourStartTs = Math.floor(now.getTime() / 1000);
+  let startIdx = allHours.findIndex((h) => toUnix(h.time) >= currentHourStartTs);
   if (startIdx === -1) startIdx = 0;
 
   const hourly: HourlyForecast[] = allHours

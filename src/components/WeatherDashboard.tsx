@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { THEMES, ThemeKey } from "../theme";
 import { getWeatherMapping } from "../utils/weatherHelper";
-import { getAqiInfo, getUvBand, getMoonPhaseKey } from "../utils/weatherDisplay";
+import { getAqiInfo, getUvBand, getMoonPhaseKey, formatVisibility } from "../utils/weatherDisplay";
 import { t, LangCode } from "../utils/i18n";
 import type { WeatherBundle } from "../types";
 import type { DetailKind } from "./DetailModal";
@@ -99,26 +99,34 @@ export default function WeatherDashboard({
             </div>
           </div>
 
-          <div className="flex justify-center gap-8 pt-4 text-xs">
-            <div className="flex items-center gap-1.5"><Sunrise size={15} className={th.accent3} />{formatHour(weather.current.sunrise)}</div>
-            <div className="flex items-center gap-1.5"><Sunset size={15} className={th.accent3} />{formatHour(weather.current.sunset)}</div>
+          <div className={`grid grid-cols-2 gap-2 pt-4 text-xs`}>
+            <div className="flex flex-col items-center gap-1 min-w-0">
+              <Sunrise size={18} className={th.accent3} />
+              <span className={`font-semibold ${th.textPrimary}`}>{formatHour(weather.current.sunrise)}</span>
+              <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("wxSunrise", lang)}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1 min-w-0">
+              <Sunset size={18} className={th.accent3} />
+              <span className={`font-semibold ${th.textPrimary}`}>{formatHour(weather.current.sunset)}</span>
+              <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("wxSunset", lang)}</span>
+            </div>
           </div>
 
-          <div className={`flex items-center justify-center gap-5 pt-4 text-xs ${th.header}`}>
-            <div className="flex items-center gap-1.5">
+          <div className={`grid grid-cols-3 gap-2 pt-4 text-xs`}>
+            <div className="flex flex-col items-center gap-1 min-w-0">
               <Eye size={15} className={th.accent3} />
-              <span className={`font-semibold ${th.textPrimary}`}>{weather.current.visibilityKm !== undefined ? `${weather.current.visibilityKm} km` : "—"}</span>
-              <span className={th.textMuted}>{t("wxVisibility", lang)}</span>
+              <span className={`font-semibold ${th.textPrimary}`}>{formatVisibility(weather.current.visibilityKm)}</span>
+              <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("wxVisibility", lang)}</span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-col items-center gap-1 min-w-0">
               <Cloud size={15} className={th.accent3} />
               <span className={`font-semibold ${th.textPrimary}`}>{weather.current.cloudPct !== undefined ? `%${weather.current.cloudPct}` : "—"}</span>
-              <span className={th.textMuted}>{t("hrCloud", lang)}</span>
+              <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("hrCloud", lang)}</span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-col items-center gap-1 min-w-0">
               <Wind size={15} className={th.accent3} />
               <span className={`font-semibold ${th.textPrimary}`}>{weather.current.windGustMps !== undefined ? `${weather.current.windGustMps} m/s` : "—"}</span>
-              <span className={th.textMuted}>{t("hrGust", lang)}</span>
+              <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("hrGust", lang)}</span>
             </div>
           </div>
         </div>

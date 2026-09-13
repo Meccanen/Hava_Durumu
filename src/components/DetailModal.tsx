@@ -6,7 +6,7 @@ import {
 import { THEMES, ThemeKey, themeBgToOpaqueRgba } from "../theme";
 import { getWeatherMapping } from "../utils/weatherHelper";
 import { isLikelyCorruptedAlertText } from "../utils/notificationBuilder";
-import { getAqiInfo, getUvBand, getMoonPhaseKey } from "../utils/weatherDisplay";
+import { getAqiInfo, getUvBand, getMoonPhaseKey, formatVisibility } from "../utils/weatherDisplay";
 import { t, LangCode } from "../utils/i18n";
 import type { WeatherBundle, HourlyForecast } from "../types";
 
@@ -260,7 +260,7 @@ export default function DetailModal({
             { icon: <Wind size={14} className={th.accent2} />, label: t("hrGust", lang), value: h.windGustMps !== undefined ? `${h.windGustMps} m/s` : "—", valueClass: undefined },
             { icon: <Droplets size={14} className={th.accent2} />, label: t("wxHumidity", lang), value: h.humidity !== undefined ? `%${h.humidity}` : "—", valueClass: undefined },
             { icon: <Gauge size={14} className={th.accent2} />, label: t("wxPressure", lang), value: h.pressure !== undefined ? String(h.pressure) : "—", valueClass: undefined },
-            { icon: <Eye size={14} className={th.accent2} />, label: t("wxVisibility", lang), value: h.visibilityKm !== undefined ? `${h.visibilityKm} km` : "—", valueClass: undefined },
+            { icon: <Eye size={14} className={th.accent2} />, label: t("wxVisibility", lang), value: formatVisibility(h.visibilityKm), valueClass: undefined },
           ];
           return (
             <div className="space-y-3">

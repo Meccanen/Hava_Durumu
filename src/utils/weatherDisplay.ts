@@ -22,6 +22,16 @@ export function formatDay(dt: number, timezone: string | undefined, lang: LangCo
   }).format(new Date(dt * 1000));
 }
 
+// WeatherAPI'nin current.vis_km alanı çoğu şehirde/gözlem istasyonunda 10 km
+// tavanda döner ("10 km'den fazla" → 10.0). Sabit bir "10.0 km" göstermek
+// kullanıcıya yanıltıcı/donanım-aslı geliyordu; tavan değerini "10+" olarak
+// ifade ediyoruz.
+export function formatVisibility(km?: number): string {
+  if (km === undefined) return "—";
+  const rounded = Math.round(km * 10) / 10;
+  return rounded >= 10 ? "10+ km" : `${rounded} km`;
+}
+
 // US EPA index (1-6) → i18n anahtarı + renk sınıfı
 export function getAqiInfo(usEpaIndex: number): { key: string; colorClass: string } {
   switch (usEpaIndex) {
