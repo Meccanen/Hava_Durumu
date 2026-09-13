@@ -257,6 +257,27 @@ export async function fetchWeatherBundle(
       uvIndex: Math.round(h.uv),
     }));
 
+  // "Şimdi" uyumu (canlı eşitleme): hourly[0] ekranda "Şimdi" olarak
+  // etiketlenir ve ana karttaki CANLI current verisinden okunur. Eşleşmesi
+  // için hourly[0]'ın bu alanlarını canlı current değerleriyle değiştiriyoruz
+  // (pop / kar ihtimali canlıda mevcut olmadığından tahmin saatinden kalır).
+  // Aksi halde hero "9 m/s" gösterirken "Şimdi" detayı tahmini "8.4 m/s"
+  // gösterir — kullanıcıyı tutarsızlık gibi yanıltıyordu.
+  if (hourly.length > 0) {
+    hourly[0] = {
+      ...hourly[0],
+      temperature: current.temperature,
+      feelsLike: current.apparentTemperature,
+      weatherCode: current.weatherCode,
+      isDay: current.isDay,
+      precipMm: current.precipMm,
+      windGustMps: current.windGustMps,
+      visibilityKm: current.visibilityKm,
+      cloudPct: current.cloudPct,
+      uvIndex: current.uvIndex,
+    };
+  }
+
   const daily: DailyForecast[] = data.forecast.forecastday.map((d: WeatherApiForecastDay) => ({
     dt: toUnix(`${d.date} 12:00`),
     tempMin: Math.round(d.day.mintemp_c),

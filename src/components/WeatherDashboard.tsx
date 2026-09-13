@@ -76,16 +76,11 @@ export default function WeatherDashboard({
             <span className="text-xl font-mono font-extrabold">{weather.current.apparentTemperature}°</span>
           </div>
 
-          <div className={`w-full border-t pt-4 mt-5 grid grid-cols-4 gap-2 text-xs ${th.header}`}>
+          <div className={`w-full border-t pt-4 mt-5 grid grid-cols-3 gap-2 text-xs ${th.header}`}>
             <div className="flex flex-col items-center gap-1.5 min-w-0">
               <Droplets size={16} className={th.accent2} />
               <span className={`font-semibold ${th.textPrimary}`}>{weather.current.humidity}%</span>
               <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("wxHumidity", lang)}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5 min-w-0">
-              <Wind size={16} className={th.accent2} />
-              <span className={`font-semibold ${th.textPrimary}`}>{Math.round(weather.current.windSpeed)} m/s</span>
-              <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("wxWind", lang)}</span>
             </div>
             <div className="flex flex-col items-center gap-1.5 min-w-0">
               <Gauge size={16} className={th.accent2} />
