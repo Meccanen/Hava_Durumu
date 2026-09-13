@@ -38,7 +38,9 @@ export default function DetailModal({
             {detailModal === "uv" && t("uvIndex", lang)}
             {detailModal === "aq" && t("airQuality", lang)}
             {detailModal === "moon" && t("moonPhase", lang)}
-            {detailModal === "day" && (detailDayIndex === 0 ? t("wxToday", lang) : formatDay(weather.daily[detailDayIndex]?.dt ?? 0))}
+            {detailModal === "day" && t("dayDetailTitle", lang, {
+              day: detailDayIndex === 0 ? t("wxToday", lang) : formatDay(weather.daily[detailDayIndex]?.dt ?? 0),
+            })}
           </h3>
           <button onClick={onClose} className={th.textMuted}>
             <X size={20} />
@@ -138,41 +140,59 @@ export default function DetailModal({
           </div>
         )}
 
-        {detailModal === "day" && weather.dailyHourly[detailDayIndex] && (
-          <div className="space-y-1 -mx-2">
-            <div className={`flex items-center gap-2 px-2 pb-1.5 mb-1 border-b text-[10px] font-semibold uppercase tracking-wide ${th.header} ${th.textMuted}`}>
-              <span className="w-11 shrink-0">{t("wxColHour", lang)}</span>
-              <span className="w-4 shrink-0" />
-              <span className="w-9 shrink-0 text-right">{t("wxColTemp", lang)}</span>
-              <span className="w-12 shrink-0 text-right">{t("wxColHumidity", lang)}</span>
-              <span className="w-14 shrink-0 text-right">{t("wxColWind", lang)}</span>
-              <span className="w-14 shrink-0 text-right">{t("wxColPressure", lang)}</span>
-              <span className="flex-1 text-right">{t("wxColRain", lang)}</span>
-            </div>
-            {weather.dailyHourly[detailDayIndex].map((h, idx) => {
-              const m = getWeatherMapping(h.weatherCode, h.isDay);
-              return (
-                <div key={idx} className={`flex items-center gap-2 px-2 py-2 text-xs rounded-xl ${th.cardHover}`}>
-                  <span className={`w-11 shrink-0 font-medium ${th.textPrimary}`}>{formatHour(h.dt)}</span>
-                  <m.iconName size={16} className={`${m.colorClass} shrink-0`} />
-                  <span className={`w-9 shrink-0 text-right font-semibold ${th.textPrimary}`}>{h.temperature}°</span>
-                  <span className={`flex items-center gap-0.5 w-12 shrink-0 justify-end ${th.textMuted}`}>
-                    <Droplets size={11} />{h.humidity ?? "—"}%
-                  </span>
-                  <span className={`flex items-center gap-0.5 w-14 shrink-0 justify-end ${th.textMuted}`}>
-                    <Wind size={11} />{h.windSpeed ?? "—"}
-                  </span>
-                  <span className={`flex items-center gap-0.5 w-14 shrink-0 justify-end ${th.textMuted}`}>
-                    <Gauge size={11} />{h.pressure ?? "—"}
-                  </span>
-                  <span className={`flex items-center gap-0.5 flex-1 justify-end ${h.pop > 0.1 ? th.accent2 : th.textMuted}`}>
-                    <Umbrella size={11} />{Math.round(h.pop * 100)}%
-                  </span>
+        {detailModal === "day" && weather.dailyHourly[detailDayIndex] && (() => {
+          const day = weather.daily[detailDayIndex];
+          const dayMap = day ? getWeatherMapping(day.weatherCode, true) : null;
+          return (
+            <div className="space-y-1 -mx-2">
+              {day && (
+                <div className={`rounded-2xl border p-3.5 mb-2 flex items-center gap-3 ${th.header}`}>
+                  {dayMap && <dayMap.iconName size={28} className={`${dayMap.colorClass} shrink-0`} />}
+                  <div className="flex-1">
+                    <p className={`text-sm font-bold ${th.textPrimary}`}>
+                      {t("dayDetailHighLow", lang, { max: String(day.tempMax), min: String(day.tempMin) })}
+                    </p>
+                    <p className={`text-xs flex items-center gap-1.5 ${day.pop > 0.1 ? th.accent2 : th.textMuted}`}>
+                      <Umbrella size={12} />
+                      {t("dayDetailRainChance", lang, { p: String(Math.round(day.pop * 100)) })}
+                    </p>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              )}
+              <div className={`flex items-center gap-2 px-2 pb-1.5 mb-1 border-b text-[10px] font-semibold uppercase tracking-wide ${th.header} ${th.textMuted}`}>
+                <span className="w-11 shrink-0">{t("wxColHour", lang)}</span>
+                <span className="w-4 shrink-0" />
+                <span className="w-9 shrink-0 text-right">{t("wxColTemp", lang)}</span>
+                <span className="w-12 shrink-0 text-right">{t("wxColRain", lang)}</span>
+                <span className="w-12 shrink-0 text-right">{t("wxColHumidity", lang)}</span>
+                <span className="w-14 shrink-0 text-right">{t("wxColWind", lang)}</span>
+                <span className="flex-1 text-right">{t("wxColPressure", lang)}</span>
+              </div>
+              {weather.dailyHourly[detailDayIndex].map((h, idx) => {
+                const m = getWeatherMapping(h.weatherCode, h.isDay);
+                return (
+                  <div key={idx} className={`flex items-center gap-2 px-2 py-2 text-xs rounded-xl ${th.cardHover}`}>
+                    <span className={`w-11 shrink-0 font-medium ${th.textPrimary}`}>{formatHour(h.dt)}</span>
+                    <m.iconName size={16} className={`${m.colorClass} shrink-0`} />
+                    <span className={`w-9 shrink-0 text-right font-semibold ${th.textPrimary}`}>{h.temperature}°</span>
+                    <span className={`flex items-center gap-0.5 w-12 shrink-0 justify-end ${h.pop > 0.1 ? th.accent2 : th.textMuted}`}>
+                      <Umbrella size={11} />{Math.round(h.pop * 100)}%
+                    </span>
+                    <span className={`flex items-center gap-0.5 w-12 shrink-0 justify-end ${th.textMuted}`}>
+                      <Droplets size={11} />{h.humidity ?? "—"}%
+                    </span>
+                    <span className={`flex items-center gap-0.5 w-14 shrink-0 justify-end ${th.textMuted}`}>
+                      <Wind size={11} />{h.windSpeed ?? "—"}
+                    </span>
+                    <span className={`flex items-center gap-0.5 flex-1 justify-end ${th.textMuted}`}>
+                      <Gauge size={11} />{h.pressure ?? "—"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
