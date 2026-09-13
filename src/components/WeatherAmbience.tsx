@@ -13,6 +13,7 @@ import { useMemo } from "react";
 interface WeatherAmbienceProps {
   code: number;
   isDay: boolean;
+  isLight?: boolean;
 }
 
 /** Deterministik pseudo-random üreteç — her render'da aynı partikül dizisi. */
@@ -37,7 +38,7 @@ function isClear(code: number): boolean {
   return code === 0;
 }
 
-export default function WeatherAmbience({ code, isDay }: WeatherAmbienceProps) {
+export default function WeatherAmbience({ code, isDay, isLight = false }: WeatherAmbienceProps) {
   const rain = isRain(code);
   const snow = isSnow(code);
   const thunder = isThunder(code);
@@ -84,7 +85,7 @@ export default function WeatherAmbience({ code, isDay }: WeatherAmbienceProps) {
   }, [showClouds, code]);
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+    <div className={`pointer-events-none absolute inset-0 overflow-hidden ${isLight ? "w-light" : ""}`} aria-hidden>
       {thunder && <div className="w-flash" />}
       {showClouds && (
         <div className="absolute inset-0">

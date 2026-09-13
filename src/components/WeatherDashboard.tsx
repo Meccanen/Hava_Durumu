@@ -58,7 +58,7 @@ export default function WeatherDashboard({
 
       <section className={`${th.card} border rounded-3xl p-6 sm:p-7 transition-all duration-300 shadow-2xl relative overflow-hidden`}>
         <div className={`pointer-events-none absolute inset-0 bg-gradient-to-b ${currentMapping.bgClass}`} />
-        <WeatherAmbience code={weather.current.weatherCode} isDay={weather.current.isDay} />
+        <WeatherAmbience code={weather.current.weatherCode} isDay={weather.current.isDay} isLight={isLightTheme} />
 
         <div className="relative flex flex-col items-center">
           <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-1 ${th.textMuted}`}>

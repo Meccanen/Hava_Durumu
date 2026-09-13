@@ -97,7 +97,7 @@ html.font-scale-xlarge { font-size: 134%; }
 }
 .w-star {
   position: absolute; width: 3px; height: 3px; border-radius: 9999px;
-  background: #fff; animation: wStarTwinkle ease-in-out infinite;
+  background: var(--amb-star, #fff); animation: wStarTwinkle ease-in-out infinite;
 }
 
 @keyframes wPrecipFall {
@@ -134,8 +134,8 @@ html.font-scale-xlarge { font-size: 134%; }
 
 @keyframes wCloudDrift {
   0% { left: -48%; opacity: 0; }
-  15% { opacity: 0.55; }
-  80% { opacity: 0.55; }
+  15% { opacity: var(--amb-cloud-op, 0.55); }
+  80% { opacity: var(--amb-cloud-op, 0.55); }
   100% { left: 112%; opacity: 0; }
 }
 .w-cloud {
@@ -155,4 +155,24 @@ html.font-scale-xlarge { font-size: 134%; }
               radial-gradient(ellipse at 75% 60%, rgba(226, 232, 240, 0.12), transparent 55%);
   filter: blur(10px);
   animation: wHaze 16s ease-in-out infinite;
+}
+
+/* Açık temalarda (kart arka planı beyaz) partikül renkleri koyu tonlara döner.
+   WeatherAmbience kökündeki `.w-light` sınıfı ile tetiklenir. */
+.w-light {
+  --amb-star: #334155;
+  --amb-cloud-op: 0.4;
+}
+.w-light .w-drop {
+  background: linear-gradient(to bottom, rgba(30, 64, 175, 0.3), rgba(59, 130, 246, 0.9));
+}
+.w-light .w-snow {
+  background: rgba(71, 85, 105, 0.85);
+  box-shadow: 0 0 6px rgba(71, 85, 105, 0.4);
+}
+.w-light .w-cloud {
+  background: rgba(71, 85, 105, 0.16);
+}
+.w-light .w-flash {
+  background: radial-gradient(circle at 50% 20%, rgba(51, 65, 85, 0.85), rgba(30, 58, 138, 0.4));
 }
