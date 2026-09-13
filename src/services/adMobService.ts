@@ -93,8 +93,7 @@ export async function initializeAds(): Promise<void> {
 }
 
 /**
- * Alt banner reklamını gösterir. Destekçi Rozeti sahibi kullanıcılar için
- * ÇAĞRILMAMALI — çağıran taraf (App.tsx) bu kontrolü yapar.
+ * Alt banner reklamını gösterir.
  */
 export async function showBannerAd(): Promise<void> {
   if (!BANNER_AD_UNIT_ID) {
@@ -124,7 +123,7 @@ export async function showBannerAd(): Promise<void> {
   }
 }
 
-/** Banner'ı gizler (ör. kullanıcı Destekçi Rozeti satın aldığında). */
+/** Banner'ı gizler. */
 export async function hideBannerAd(): Promise<void> {
   if (!bannerVisible) return;
   try {
