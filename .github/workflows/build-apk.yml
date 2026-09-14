@@ -136,6 +136,31 @@ jobs:
           for loc, label in names.items():
               write_values(loc, label)
           print(">>> Yerelleştirilmiş uygulama adları oluşturuldu (varsayılan: İngilizce).")
+
+          # 3) MANİFEST GÜVENCESİ: launcher, uygulama adı yerine ÇALIŞTIRILABİLİR
+          #    ACTIVITY'nin android:label'ini okuyabilir. Hem <application> hem de
+          #    .MainActivity için android:label="@string/app_name" zorla sabitlenir —
+          #    böylece her iki okuma yolu da aynı yerelleştirilmiş kaynağa gider.
+          import re
+          mp = "android/app/src/main/AndroidManifest.xml"
+          with open(mp, "r") as f:
+              xml = f.read()
+
+          def set_label(tag):
+              if 'android:label=' in tag:
+                  return re.sub(r'android:label="[^"]*"',
+                                'android:label="@string/app_name"', tag)
+              return tag.replace('>', ' android:label="@string/app_name">', 1)
+
+          n_app = re.subn(r'<application\b[^>]*>',
+                          lambda mm: set_label(mm.group(0)), xml, count=1)
+          xml = n_app[0]
+          n_act = re.subn(r'<activity\b[^>]*android:name="\.MainActivity"[^>]*>',
+                          lambda mm2: set_label(mm2.group(0)), xml, count=1)
+          xml = n_act[0]
+          with open(mp, "w") as f:
+              f.write(xml)
+          print(f">>> Manifest android:label sabitlendi (application:{'EVET' if n_app[1] else 'YOK'}, activity:{'EVET' if n_act[1] else 'YOK'})")
           PY
       - name: >-
           TESPİT: Lifecycle dependency graph'ını dök (build'den önce — desktop KMP
@@ -485,6 +510,9 @@ jobs:
             | grep -E "^application-label" | sort
           "$AAPT" dump badging app/build/outputs/apk/debug/app-debug.apk \
             | grep -E "^application-label-en" | head -1
+          echo ">>> Varsayılan (launcher'ın okuyacağı) uygulama adı:"
+          "$AAPT" dump badging app/build/outputs/apk/debug/app-debug.apk \
+            | grep -E "^application-label:" | head -1
       - name: Release AAB build et
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
