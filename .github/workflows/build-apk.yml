@@ -464,6 +464,18 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
+      - name: "DOĞRULA: APK içindeki uygulama adı etiketleri (dillere göre)"
+        working-directory: android
+        run: |
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt 2>/dev/null | tail -1)
+          echo ">>> aapt: $AAPT"
+          if [ -z "$AAPT" ]; then
+            echo "!!! aapt bulunamadı, etiket doğrulaması atlandı"
+            exit 0
+          fi
+          "$AAPT" dump badging app/build/outputs/apk/debug/app-debug.apk \
+            | grep -E "^application-label" | sort
+          echo ">>> Beklenen: application-label-en:'Meccanen Weather Assistant'
       - name: Release AAB build et
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
