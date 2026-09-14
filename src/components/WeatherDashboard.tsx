@@ -88,9 +88,9 @@ export default function WeatherDashboard({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="relative w-full grid grid-cols-[auto_1fr] items-center gap-x-4 sm:gap-x-6"
+            className="relative w-full grid grid-cols-2 items-center gap-x-4 sm:gap-x-8"
           >
-            <div className="relative mb-1 justify-self-center">
+            <div className="relative justify-self-center sm:justify-self-end">
               {codeGlow && codeGlow === "sun" && (
                 <div className="absolute inset-0">
                   <div className={`w-sun-halo ${currentMapping.colorClass}`} />
