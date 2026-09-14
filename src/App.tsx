@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   MapPin, ChevronsDown, Settings, Palette, CloudSun,
 } from "lucide-react";
@@ -12,6 +12,8 @@ import { requestLocationPermission, getCurrentPosition, guessTimezone } from "./
 import { t, detectLanguage, LangCode } from "./utils/i18n";
 import { formatHour, formatDay } from "./utils/weatherDisplay";
 import { showBannerAd, onBannerHeightChange, unlockWithRewardedInterstitial, isRewardedUnlockedThisSession } from "./services/adMobService";
+import { shareWeatherCard } from "./services/shareService";
+import { getWeatherMapping } from "./utils/weatherHelper";
 import {
   hasNotificationPermission, requestNotificationPermission,
   refreshScheduledNotifications,
@@ -150,6 +152,34 @@ export default function App() {
     const granted = await unlockWithRewardedInterstitial();
     setUnlockingDetail(null);
     if (granted) setDetailModal(kind);
+  };
+
+  // ---- Hero kartı paylaşımı (WhatsApp/Instagram vb. — ödüllü reklam karşılığında) ----
+  const [sharing, setSharing] = useState(false);
+  const heroRef = useRef<HTMLElement | null>(null);
+
+  const handleShare = async () => {
+    if (!weather || sharing) return;
+    setSharing(true);
+    const granted = await unlockWithRewardedInterstitial();
+    if (!granted) { setSharing(false); return; }
+
+    // decode kilit açıldıktan sonra PNG üret — spinner bir kare görünmesin
+    // diye kısa bir bekleme.
+    await new Promise((r) => setTimeout(r, 0));
+    const heroEl = heroRef.current;
+    setSharing(false);
+    if (!heroEl) return;
+
+    const shareTitle = `${t("appName", lang)} — ${location.name}`;
+    const shareText = `${location.name}: ${weather.current.temperature}° · ${t(
+      getWeatherMapping(weather.current.weatherCode, weather.current.isDay).descKey, lang
+    )}`;
+    try {
+      await shareWeatherCard(heroEl, { title: shareTitle, text: shareText });
+    } catch (e) {
+      console.error("[Meccanen HD] Paylaşım başarısız:", e);
+    }
   };
 
   // ---- Bildirimden tıklama → deeplink: günlük özet/ani değişim bildirimi
@@ -477,10 +507,14 @@ export default function App() {
             th={th}
             lang={lang}
             isLightTheme={isLight(themeKey)}
+            locationName={location.name}
             formatHour={fmtHour}
             formatDay={fmtDay}
             unlockingDetail={unlockingDetail}
             onOpenDetail={handleOpenDetail}
+            sharing={sharing}
+            onShare={handleShare}
+            heroRef={heroRef}
           />
         )}
       </div>

@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, type RefObject } from "react";
 import { motion } from "motion/react";
 import {
   AlertTriangle, ChevronsDown, Droplets, Wind, Umbrella, Gauge,
   Sunrise, Sunset, SunMedium, Leaf, Moon, Eye, Cloud, Clock, CalendarDays,
+  MapPin, Share2,
 } from "lucide-react";
 import { THEMES, ThemeKey } from "../theme";
 import { getWeatherMapping } from "../utils/weatherHelper";
@@ -17,15 +18,19 @@ interface WeatherDashboardProps {
   th: typeof THEMES[ThemeKey];
   lang: LangCode;
   isLightTheme: boolean;
+  locationName: string;
   formatHour: (dt: number) => string;
   formatDay: (dt: number) => string;
   unlockingDetail: string | null;
   onOpenDetail: (kind: DetailKind, dayIndex?: number) => void;
+  sharing: boolean;
+  onShare: () => void;
+  heroRef: RefObject<HTMLElement | null>;
 }
 
 export default function WeatherDashboard({
-  weather, th, lang, isLightTheme, formatHour, formatDay,
-  unlockingDetail, onOpenDetail,
+  weather, th, lang, isLightTheme, locationName, formatHour, formatDay,
+  unlockingDetail, onOpenDetail, sharing, onShare, heroRef,
 }: WeatherDashboardProps) {
   const currentMapping = useMemo(
     () => getWeatherMapping(weather.current.weatherCode, weather.current.isDay),
@@ -56,12 +61,25 @@ export default function WeatherDashboard({
         </button>
       )}
 
-      <section className={`${th.card} border rounded-3xl p-6 sm:p-7 transition-all duration-300 shadow-2xl relative overflow-hidden`}>
+      <section ref={heroRef} className={`${th.card} border rounded-3xl p-6 sm:p-7 transition-all duration-300 shadow-2xl relative overflow-hidden`}>
         <div className={`pointer-events-none absolute inset-0 bg-gradient-to-b ${currentMapping.bgClass}`} />
         <WeatherAmbience code={weather.current.weatherCode} isDay={weather.current.isDay} isLight={isLightTheme} />
 
         <div className="relative flex flex-col items-center">
+          <button onClick={onShare} disabled={sharing}
+            title={t("shareHero", lang)}
+            className={`absolute top-0 end-0 w-11 h-11 flex items-center justify-center rounded-full border transition-all cursor-pointer active:scale-95 ${th.header} ${th.textMuted} hover:opacity-75`}>
+            {sharing ? (
+              <div className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${th.accent}`} />
+            ) : (
+              <Share2 size={18} />
+            )}
+          </button>
+
           <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-1 ${th.textMuted}`}>
+            <MapPin size={12} className="inline -mt-0.5 me-1" />
+            {locationName}
+            <span className="mx-1.5 opacity-60">•</span>
             {formatFullDate(Math.floor(Date.now() / 1000), undefined, lang)}
           </p>
 
