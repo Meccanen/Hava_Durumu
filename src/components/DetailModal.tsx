@@ -65,21 +65,18 @@ export default function DetailModal({
                 <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
                   {t("alertRawContentLabel", lang)}
                 </p>
-                {isLikelyCorruptedAlertText(weather.alerts[0].effect) ? (
-                  <p className={`text-sm italic leading-relaxed ${th.textMuted}`}>
-                    {t("alertRawUnavailable", lang)}
+                {isLikelyCorruptedAlertText(weather.alerts[0].effect) && (
+                  <p className={`text-[11px] italic pt-1 ${th.textMuted}`}>
+                    {t("alertPartialNote", lang)}
                   </p>
-                ) : (
-                  <>
-                    <p className={`text-base whitespace-pre-line leading-relaxed font-medium ${th.textPrimary}`}>
-                      {weather.alerts[0].effect}
-                    </p>
-                    {weather.alerts[0].language && (
-                      <p className={`text-[11px] italic pt-1 ${th.textMuted}`}>
-                        {t("alertLanguageNote", lang, { language: weather.alerts[0].language })}
-                      </p>
-                    )}
-                  </>
+                )}
+                <p className={`text-base whitespace-pre-line leading-relaxed font-medium ${th.textPrimary}`}>
+                  {weather.alerts[0].effect}
+                </p>
+                {weather.alerts[0].language && (
+                  <p className={`text-[11px] italic pt-1 ${th.textMuted}`}>
+                    {t("alertLanguageNote", lang, { language: weather.alerts[0].language })}
+                  </p>
                 )}
               </div>
             )}
