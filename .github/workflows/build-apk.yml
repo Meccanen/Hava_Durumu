@@ -21,6 +21,16 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+      - name: Android SDK lisanslarını önceden kabul et (interaktif prompt'a takılmayı önler)
+        run: |
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export ANDROID_HOME="$SDK"
+          if [ -x "$SDK/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+            echo ">>> SDK lisansları kabul edildi ($SDK/licenses)"
+          else
+            echo ">>> sdkmanager bulunamadı, setup-android atlacak"
+          fi
       - name: Android SDK kur
         uses: android-actions/setup-android@v3
       - name: Bagımlılıkları yükle
