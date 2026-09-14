@@ -81,7 +81,11 @@ export interface WeatherApiAlert {
   headline?: string;
   event?: string;
   severity?: string;
+  urgency?: string;
+  category?: string;
+  areas?: string;
   desc?: string;
+  instruction?: string;
   language?: string;
   expires?: string; // "2026-08-30 15:00"
 }

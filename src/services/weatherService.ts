@@ -337,9 +337,13 @@ export async function fetchWeatherBundle(
 
   const alerts: WeatherAlert[] = (data.alerts?.alert ?? []).map((a: WeatherApiAlert) => ({
     headline: a.headline || a.event,
-    event: a.event,
+    event: a.event || a.headline || "",
     severity: a.severity,
+    urgency: a.urgency || null,
+    category: a.category || null,
+    areas: a.areas || null,
     effect: a.desc,
+    instruction: a.instruction || null,
     language: a.language || null,
     expiresTs: a.expires ? toUnix(a.expires.slice(0, 16)) : null,
   }));

@@ -62,12 +62,13 @@ export default function DetailModal({
             </div>
 
             <div className={`rounded-2xl border p-3.5 space-y-2.5 ${th.header}`}>
-              {weather.alerts[0].headline && !isLikelyCorruptedAlertText(weather.alerts[0].headline) && (
+              {(weather.alerts[0].event || weather.alerts[0].headline) &&
+                !isLikelyCorruptedAlertText(weather.alerts[0].event || weather.alerts[0].headline) && (
                 <div className="space-y-1">
                   <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
                     {t("alertEventLabel", lang)}
                   </p>
-                  <p className={`text-sm font-semibold leading-snug ${th.textPrimary}`}>{weather.alerts[0].headline}</p>
+                  <p className={`text-sm font-semibold leading-snug ${th.textPrimary}`}>{weather.alerts[0].event || weather.alerts[0].headline}</p>
                 </div>
               )}
               {weather.alerts[0].severity && (
@@ -78,6 +79,22 @@ export default function DetailModal({
                   <p className="text-sm font-semibold leading-snug text-red-500">
                     {t({ Minor: "sevMinor", Moderate: "sevModerate", Severe: "sevSevere", Extreme: "sevExtreme" }[weather.alerts[0].severity] ?? "sevUnknown", lang)}
                   </p>
+                </div>
+              )}
+              {weather.alerts[0].areas && !isLikelyCorruptedAlertText(weather.alerts[0].areas) && (
+                <div className="space-y-1">
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
+                    {t("alertAreasLabel", lang)}
+                  </p>
+                  <p className={`text-sm font-medium leading-snug ${th.textSecondary}`}>{weather.alerts[0].areas}</p>
+                </div>
+              )}
+              {weather.alerts[0].instruction && !isLikelyCorruptedAlertText(weather.alerts[0].instruction) && (
+                <div className="space-y-1">
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
+                    {t("alertInstructionLabel", lang)}
+                  </p>
+                  <p className={`text-sm font-medium leading-snug whitespace-pre-line ${th.textPrimary}`}>{weather.alerts[0].instruction}</p>
                 </div>
               )}
               {weather.alerts[0].expiresTs && (

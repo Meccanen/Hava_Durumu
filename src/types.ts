@@ -45,7 +45,11 @@ export interface WeatherAlert {
   headline: string;
   event: string;
   severity: string;
+  urgency: string | null;
+  category: string | null;
+  areas: string | null;
   effect: string; // desc — API'den gelen resmi/ham uyarı metni
+  instruction: string | null; // API'den gelen "ne yapılmalı" metni
   language: string | null; // API'nin bu metni verdiği dil (varsa)
   expiresTs: number | null;
 }
