@@ -185,8 +185,10 @@ export default function WeatherDashboard({
         <div data-share-brand
           className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 px-4 pb-4"
           style={{ opacity: 0 }}>
-          <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-bold tracking-wide ${th.header} ${th.accent}`}>
-            {t("appName", lang)}
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold tracking-wide ${th.header} ${th.accent}`}>
+            <span>{t("appName", lang)}</span>
+            <span className="opacity-50">•</span>
+            <span className="uppercase tracking-widest">Meccanen</span>
           </span>
         </div>
       </section>
