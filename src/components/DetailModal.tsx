@@ -274,7 +274,7 @@ export default function DetailModal({
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
-                {cells.map((c, i) => (
+                {cells.filter((c) => c.value !== "—").map((c, i) => (
                   <div key={i} className={`rounded-xl border p-2.5 flex flex-col items-center gap-1 ${th.header}`}>
                     {c.icon}
                     <p className={`text-sm font-bold ${c.valueClass ?? th.textPrimary}`}>{c.value}</p>
