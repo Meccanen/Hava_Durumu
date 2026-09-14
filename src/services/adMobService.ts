@@ -26,9 +26,9 @@ const BANNER_AD_UNIT_ID = import.meta.env.VITE_ADMOB_BANNER_ID;
 const REWARDED_INTERSTITIAL_AD_UNIT_ID = import.meta.env.VITE_ADMOB_REWARDED_INTERSTITIAL_ID;
 
 // ============================================================================
-// ⚠️⚠️⚠️  ŞU AN AKTİF: CLOSED TEST AŞAMASI İÇİN BİLİNÇLİ OLARAK AÇIK  ⚠️⚠️⚠️
+// ✅ PRODUCTION MODU AKTİF — ÖDÜLLÜ REKLAM GERÇEKTEN GÖSTERİLİYOR
 // ============================================================================
-// true iken: ödüllü geçiş reklamı HİÇ ÇAĞRILMAZ (AdMob'a istek bile gitmez —
+// true olursa: ödüllü geçiş reklamı HİÇ ÇAĞRILMAZ (AdMob'a istek bile gitmez —
 // yanlışlıkla gerçek reklama tıklama/hesap riski sıfır). Kullanıcı butona
 // bastığında 2 saniye beklenir, sonra kilit sanki reklam izlenmiş gibi açılır.
 // Bu, "gerçek ödüllü reklamları test cihazında engelleyemiyoruz" sorununa
@@ -37,14 +37,9 @@ const REWARDED_INTERSTITIAL_AD_UNIT_ID = import.meta.env.VITE_ADMOB_REWARDED_INT
 // KAYNAK: derleme zamanında VITE_DEBUG_SKIP_REWARDED_AD ortam değişkeninden
 // gelir — bkz. .github/workflows/build-apk.yml, "Web build al" step'i.
 //
-// ÖNEMLİ (bilinçli ürün kararı): Play Console Closed Test aşamasında olduğumuz
-// için bu flag'in HEM Debug APK HEM Release AAB'de açık olması isteniyor —
-// tüm testerlar gerçek reklam yerine bypass görsün diye, tek bir web build'den
-// ikisi de üretiliyor. Yani şu an production'a girene kadar AAB'de de bypass
-// AKTİF.
-//
-// >>> PRODUCTION'A (gerçek yayına) GEÇMEDEN ÖNCE: build-apk.yml'deki
-//     VITE_DEBUG_SKIP_REWARDED_AD: "true" satırını kaldırın/false yapın. <<<
+// >>> BİR SONRAKİ CLOSED TEST TURU İÇİN: build-apk.yml'deki "Web build al"
+//     adımına env: { VITE_DEBUG_SKIP_REWARDED_AD: "true" } ekleyip commit
+//     edin. Production'a tekrar dönünce bu satırı kaldırın. <<<
 const DEBUG_SKIP_REWARDED_AD = import.meta.env.VITE_DEBUG_SKIP_REWARDED_AD === 'true';
 // ============================================================================
 

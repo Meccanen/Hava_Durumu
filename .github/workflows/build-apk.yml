@@ -65,16 +65,14 @@ jobs:
             echo "VITE_ADMOB_TEST_DEVICE_IDS=$ADMOB_TEST_DEVICE_IDS" >> .env
             echo ">>> Test cihaz ID'leri .env'e eklendi (değer loglanmadı)."
           fi
-      - name: "Web build al — ⚠️ ÖDÜLLÜ REKLAM BYPASS AÇIK (Debug APK + Release AAB ikisi de etkilenir)"
-        # ⚠️⚠️⚠️ CLOSED TEST AŞAMASI — tüm testerlar (Play Store closed test
-        # dahil) gerçek reklam yerine 2 sn bypass görsün diye BİLİNÇLİ olarak
-        # true. Bu tek web build'den hem Debug APK hem Release AAB üretiliyor,
-        # yani İKİSİ DE bypass'lı olacak.
+      - name: "Web build al — ✅ ÖDÜLLÜ REKLAM AKTİF (production modu)"
+        # ⚠️✅ PRODUCTION MODU — gerçek ödüllü geçiş reklamı AÇIK.
+        # VITE_DEBUG_SKIP_REWARDED_AD tanımsız bırakıldı; adMobService bunu
+        # "false" olarak okur ve reklam gerçekten yüklenir/gösterilir.
         #
-        # >>> PRODUCTION'A GEÇERKEN: aşağıdaki "true" değerini silin (satırı
-        #     tamamen kaldırın ya da "false" yapın) ve commit edin. <<<
-        env:
-          VITE_DEBUG_SKIP_REWARDED_AD: "true"
+        # BİR SONRAKİ CLOSED TEST TURU İÇİN: bu adıma
+        #   env: { VITE_DEBUG_SKIP_REWARDED_AD: "true" }
+        # ekleyip commit edin — testerlar yine 2 sn bypass görür.
         run: npm run build
       - name: Capacitor Android ekle
         run: |
