@@ -103,19 +103,19 @@ export default function WeatherDashboard({
                 </div>
               )}
               <div className={`absolute inset-0 blur-2xl opacity-40 ${currentMapping.colorClass}`}>
-                <currentMapping.iconName size={64} />
+                <currentMapping.iconName size={84} />
               </div>
-              <currentMapping.iconName size={64} className={`relative ${currentMapping.colorClass}`} />
+              <currentMapping.iconName size={84} className={`relative ${currentMapping.colorClass}`} />
             </div>
 
             <div className="flex flex-col items-start gap-1.5 min-w-0">
               <div className="flex items-start font-mono select-none">
-                <span className={`text-5xl sm:text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b ${th.clockGrad} tracking-tight leading-none`}>
+                <span className={`text-6xl sm:text-7xl md:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b ${th.clockGrad} tracking-tight leading-none`}>
                   {weather.current.temperature}
                 </span>
                 <span className={`text-2xl sm:text-3xl font-light ${th.secColor} mt-1`}>°</span>
               </div>
-              <p className={`text-sm sm:text-base font-medium ${th.textSecondary} capitalize`}>{t(currentMapping.descKey, lang)}</p>
+              <p className={`text-base sm:text-lg font-medium ${th.textSecondary} capitalize`}>{t(currentMapping.descKey, lang)}</p>
               <div className="flex items-center gap-2 text-xs font-semibold">
                 <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border ${th.header} ${th.accent2}`}>
                   <ChevronsDown size={12} className="rotate-180" />
@@ -134,6 +134,19 @@ export default function WeatherDashboard({
             <span className="text-base font-mono font-extrabold">{weather.current.apparentTemperature}°</span>
           </div>
 
+          <div className={`grid grid-cols-2 gap-2 pt-4 text-xs`}>
+            <div className="flex flex-col items-center gap-1 min-w-0">
+              <Sunrise size={18} className={th.accent3} />
+              <span className={`font-semibold ${th.textPrimary}`}>{formatHour(weather.current.sunrise)}</span>
+              <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("wxSunrise", lang)}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1 min-w-0">
+              <Sunset size={18} className={th.accent3} />
+              <span className={`font-semibold ${th.textPrimary}`}>{formatHour(weather.current.sunset)}</span>
+              <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("wxSunset", lang)}</span>
+            </div>
+          </div>
+
           <div className={`w-full border-t pt-4 mt-4 grid grid-cols-3 gap-2 text-xs ${th.header}`}>
             <div className="flex flex-col items-center gap-1.5 min-w-0">
               <Droplets size={16} className={th.accent2} />
@@ -149,19 +162,6 @@ export default function WeatherDashboard({
               <Umbrella size={16} className={th.accent2} />
               <span className={`font-semibold ${th.textPrimary}`}>{Math.round(weather.current.popToday)}%</span>
               <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("wxPop", lang)}</span>
-            </div>
-          </div>
-
-          <div className={`grid grid-cols-2 gap-2 pt-4 text-xs`}>
-            <div className="flex flex-col items-center gap-1 min-w-0">
-              <Sunrise size={18} className={th.accent3} />
-              <span className={`font-semibold ${th.textPrimary}`}>{formatHour(weather.current.sunrise)}</span>
-              <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("wxSunrise", lang)}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1 min-w-0">
-              <Sunset size={18} className={th.accent3} />
-              <span className={`font-semibold ${th.textPrimary}`}>{formatHour(weather.current.sunset)}</span>
-              <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("wxSunset", lang)}</span>
             </div>
           </div>
 
