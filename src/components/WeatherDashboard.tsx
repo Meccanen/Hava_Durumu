@@ -67,6 +67,7 @@ export default function WeatherDashboard({
 
         <div className="relative flex flex-col items-center">
           <button onClick={onShare} disabled={sharing}
+            data-share-hide
             title={t("shareHero", lang)}
             className={`absolute top-0 end-0 w-11 h-11 flex items-center justify-center rounded-full border transition-all cursor-pointer active:scale-95 ${th.header} ${th.textMuted} hover:opacity-75`}>
             {sharing ? (
@@ -178,6 +179,15 @@ export default function WeatherDashboard({
               <span className={`w-full text-center leading-tight break-words ${th.textMuted}`}>{t("hrGust", lang)}</span>
             </div>
           </div>
+        </div>
+
+        {/* Paylaşım görselinde görünen marka şeridi — normalde görünmez, yalnızca PN g yakalaması sırasında opacity:1 yapılır. */}
+        <div data-share-brand
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 px-4 pb-4"
+          style={{ opacity: 0 }}>
+          <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-bold tracking-wide ${th.header} ${th.accent}`}>
+            {t("appName", lang)}
+          </span>
         </div>
       </section>
 
