@@ -134,7 +134,7 @@ export default function WeatherDashboard({
             <span className="text-base font-mono font-extrabold">{weather.current.apparentTemperature}°</span>
           </div>
 
-          <div className={`grid grid-cols-2 gap-2 pt-4 text-xs`}>
+          <div className={`w-full grid grid-cols-2 gap-2 pt-4 text-xs`}>
             <div className="flex flex-col items-center gap-1 min-w-0">
               <Sunrise size={18} className={th.accent3} />
               <span className={`font-semibold ${th.textPrimary}`}>{formatHour(weather.current.sunrise)}</span>
@@ -165,7 +165,7 @@ export default function WeatherDashboard({
             </div>
           </div>
 
-          <div className={`grid grid-cols-3 gap-2 pt-4 text-xs`}>
+          <div className={`w-full grid grid-cols-3 gap-2 pt-4 text-xs`}>
             <div className="flex flex-col items-center gap-1 min-w-0">
               <Eye size={15} className={th.accent3} />
               <span className={`font-semibold ${th.textPrimary}`}>{formatVisibility(weather.current.visibilityKm)}</span>
