@@ -6,7 +6,7 @@ import {
 import { THEMES, ThemeKey, themeBgToOpaqueRgba } from "../theme";
 import { getWeatherMapping } from "../utils/weatherHelper";
 import { isLikelyCorruptedAlertText } from "../utils/notificationBuilder";
-import { getAqiInfo, getUvBand, getMoonPhaseKey, formatVisibility } from "../utils/weatherDisplay";
+import { getAqiInfo, getUvBand, getMoonPhaseKey, formatVisibility, formatFullDate } from "../utils/weatherDisplay";
 import { t, LangCode } from "../utils/i18n";
 import type { WeatherBundle, HourlyForecast } from "../types";
 
@@ -60,16 +60,52 @@ export default function DetailModal({
               <AlertTriangle size={24} className="text-red-500 shrink-0" />
               <p className={`text-sm font-semibold text-red-500`}>{t("alertGenericWarning", lang)}</p>
             </div>
-            {weather.alerts[0].effect && (
+
+            <div className={`rounded-2xl border p-3.5 space-y-2.5 ${th.header}`}>
+              {weather.alerts[0].headline && !isLikelyCorruptedAlertText(weather.alerts[0].headline) && (
+                <div className="space-y-1">
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
+                    {t("alertEventLabel", lang)}
+                  </p>
+                  <p className={`text-sm font-semibold leading-snug ${th.textPrimary}`}>{weather.alerts[0].headline}</p>
+                </div>
+              )}
+              {weather.alerts[0].severity && (
+                <div className="space-y-1">
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
+                    {t("alertSeverityLabel", lang)}
+                  </p>
+                  <p className="text-sm font-semibold leading-snug text-red-500">
+                    {t({ Minor: "sevMinor", Moderate: "sevModerate", Severe: "sevSevere", Extreme: "sevExtreme" }[weather.alerts[0].severity] ?? "sevUnknown", lang)}
+                  </p>
+                </div>
+              )}
+              {weather.alerts[0].expiresTs && (
+                <div className="space-y-1">
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
+                    {t("alertExpiresLabel", lang)}
+                  </p>
+                  <p className={`text-sm font-medium leading-snug ${th.textSecondary}`}>
+                    {formatFullDate(weather.alerts[0].expiresTs, undefined, lang)}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {weather.alerts[0].effect && isLikelyCorruptedAlertText(weather.alerts[0].effect) ? (
               <div className={`rounded-2xl border p-3.5 space-y-2 ${th.header}`}>
                 <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
                   {t("alertRawContentLabel", lang)}
                 </p>
-                {isLikelyCorruptedAlertText(weather.alerts[0].effect) && (
-                  <p className={`text-[11px] italic pt-1 ${th.textMuted}`}>
-                    {t("alertPartialNote", lang)}
-                  </p>
-                )}
+                <p className={`text-sm italic leading-relaxed ${th.textMuted}`}>
+                  {t("alertRawUnavailable", lang)}
+                </p>
+              </div>
+            ) : (
+              <div className={`rounded-2xl border p-3.5 space-y-2 ${th.header}`}>
+                <p className={`text-[10px] font-bold uppercase tracking-wide ${th.textMuted}`}>
+                  {t("alertRawContentLabel", lang)}
+                </p>
                 <p className={`text-base whitespace-pre-line leading-relaxed font-medium ${th.textPrimary}`}>
                   {weather.alerts[0].effect}
                 </p>
