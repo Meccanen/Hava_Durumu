@@ -78,6 +78,45 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+      - name: "Uygulama adı — cihaz diline göre (5 dilli strings.xml)"
+        run: |
+          python3 - <<'PY'
+          import os, xml.etree.ElementTree as ET
+          base = "android/app/src/main/res"
+          # Değerler: "Meccanen" markası sabit; açıklama cihaz dilinde.
+          names = {
+            "tr": "Meccanen Hava Durumu Asistanı",
+            "en": "Meccanen Weather Assistant",
+            "de": "Meccanen Wetter-Assistent",
+            "ar": "Meccanen مساعد الطقس",
+            "ur": "Meccanen موسمی معاون",
+          }
+          # Önce kapasitörün ürettiği değeri oku (varsa) — tr için referans.
+          values_dir = os.path.join(base, "values")
+          default_name = "Meccanen Hava Durumu Asistanı"
+          strings_path = os.path.join(values_dir, "strings.xml")
+          if os.path.exists(strings_path):
+              try:
+                  root = ET.parse(strings_path).getroot()
+                  for s in root.findall("string"):
+                      if s.get("name") == "app_name":
+                          default_name = (s.text or "").strip()
+              except Exception:
+                  pass
+          ET.register_namespace("", "http://schemas.android.com/apk/res/android")
+          for loc, label in names.items():
+              if loc == "tr":
+                  label = default_name
+              d = os.path.join(base, f"values-{loc}")
+              os.makedirs(d, exist_ok=True)
+              root = ET.Element("resources", {
+                  "xmlns:android": "http://schemas.android.com/apk/res/android",
+              })
+              ET.SubElement(root, "string", {"name": "app_name"}).text = label
+              ET.ElementTree(root).write(os.path.join(d, "strings.xml"), encoding="utf-8", xml_declaration=True)
+              print(f">>> values-{loc}/strings.xml -> {label}")
+          print(">>> Yerelleştirilmiş uygulama adları oluşturuldu.")
+          PY
       - name: >-
           TESPİT: Lifecycle dependency graph'ını dök (build'den önce — desktop KMP
           varyantını kim çekiyor? ReportFragment yalnızca -android AAR'ında; desktop
