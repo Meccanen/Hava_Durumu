@@ -17,14 +17,14 @@ export async function shareWeatherCard(
   opts: { title: string; text: string }
 ): Promise<void> {
   // Paylaşım görseli markalama: hero içindeki [data-share-brand] etiketi
-  // normalde görünmez (opacity:0); yalnızca yakalama anında görünür yapılır.
+  // normalde saklıdır (display:none); yalnızca yakalama anında görünür yapılır.
   // [data-share-hide] elemanları (örn. paylaş butonu) ise görselde yer
-  // almamalı — yakalama boyunca gizlenir. Markaya yer açmak için node'a
-  // geçici alt boşluk eklenir (absolute bottom marka, içeriğin altına düşer).
+  // almamalı — yakalama boyunca gizlenir. Marka kart akışının son öğesi
+  // olduğundan overlap olmaz (absolute bottom değil, flex altı).
   const brandEl = node.querySelector<HTMLElement>("[data-share-brand]");
   const hideEls = Array.from(node.querySelectorAll<HTMLElement>("[data-share-hide]"));
-  const prevPaddingBottom = node.style.paddingBottom;
-  if (brandEl) { brandEl.style.opacity = "1"; node.style.paddingBottom = "72px"; }
+  const prevBrandDisplay = brandEl?.style.display;
+  if (brandEl) { brandEl.style.display = "flex"; }
   hideEls.forEach((el) => { el.style.display = "none"; });
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
@@ -54,7 +54,7 @@ export async function shareWeatherCard(
       link.remove();
     }
   } finally {
-    if (brandEl) { brandEl.style.opacity = ""; node.style.paddingBottom = prevPaddingBottom; }
+    if (brandEl) { brandEl.style.display = prevBrandDisplay || ""; }
     hideEls.forEach((el) => { el.style.display = ""; });
   }
 }
