@@ -475,7 +475,8 @@ jobs:
           fi
           "$AAPT" dump badging app/build/outputs/apk/debug/app-debug.apk \
             | grep -E "^application-label" | sort
-          echo ">>> Beklenen: application-label-en:'Meccanen Weather Assistant'
+          "$AAPT" dump badging app/build/outputs/apk/debug/app-debug.apk \
+            | grep -E "^application-label-en" | head -1
       - name: Release AAB build et
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
