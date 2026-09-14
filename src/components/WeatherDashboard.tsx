@@ -85,53 +85,56 @@ export default function WeatherDashboard({
           </p>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: -8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="relative mb-1"
+            className="relative w-full grid grid-cols-[auto_1fr] items-center gap-x-4 sm:gap-x-6"
           >
-            {codeGlow && codeGlow === "sun" && (
-              <div className="absolute inset-0">
-                <div className={`w-sun-halo ${currentMapping.colorClass}`} />
-                <div className={`w-sun-rays ${currentMapping.colorClass}`} />
+            <div className="relative mb-1 justify-self-center">
+              {codeGlow && codeGlow === "sun" && (
+                <div className="absolute inset-0">
+                  <div className={`w-sun-halo ${currentMapping.colorClass}`} />
+                  <div className={`w-sun-rays ${currentMapping.colorClass}`} />
+                </div>
+              )}
+              {codeGlow && codeGlow === "moon" && (
+                <div className="absolute inset-0">
+                  <div className={`w-moon-halo ${currentMapping.colorClass}`} />
+                </div>
+              )}
+              <div className={`absolute inset-0 blur-2xl opacity-40 ${currentMapping.colorClass}`}>
+                <currentMapping.iconName size={64} />
               </div>
-            )}
-            {codeGlow && codeGlow === "moon" && (
-              <div className="absolute inset-0">
-                <div className={`w-moon-halo ${currentMapping.colorClass}`} />
-              </div>
-            )}
-            <div className={`absolute inset-0 blur-2xl opacity-40 ${currentMapping.colorClass}`}>
-              <currentMapping.iconName size={72} />
+              <currentMapping.iconName size={64} className={`relative ${currentMapping.colorClass}`} />
             </div>
-            <currentMapping.iconName size={72} className={`relative ${currentMapping.colorClass}`} />
+
+            <div className="flex flex-col items-start gap-1.5 min-w-0">
+              <div className="flex items-start font-mono select-none">
+                <span className={`text-5xl sm:text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b ${th.clockGrad} tracking-tight leading-none`}>
+                  {weather.current.temperature}
+                </span>
+                <span className={`text-2xl sm:text-3xl font-light ${th.secColor} mt-1`}>°</span>
+              </div>
+              <p className={`text-sm sm:text-base font-medium ${th.textSecondary} capitalize`}>{t(currentMapping.descKey, lang)}</p>
+              <div className="flex items-center gap-2 text-xs font-semibold">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border ${th.header} ${th.accent2}`}>
+                  <ChevronsDown size={12} className="rotate-180" />
+                  {weather.daily[0]?.tempMax ?? weather.current.temperature}°
+                </span>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border ${th.header} ${th.textMuted}`}>
+                  <ChevronsDown size={12} />
+                  {weather.daily[0]?.tempMin ?? weather.current.apparentTemperature}°
+                </span>
+              </div>
+            </div>
           </motion.div>
 
-          <div className="flex items-start justify-center font-mono select-none">
-            <span className={`text-6xl sm:text-7xl md:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b ${th.clockGrad} tracking-tight leading-none`}>
-              {weather.current.temperature}
-            </span>
-            <span className={`text-2xl sm:text-3xl font-light ${th.secColor} mt-1`}>°</span>
-          </div>
-          <p className={`text-sm sm:text-base font-medium ${th.textSecondary} mt-1 capitalize`}>{t(currentMapping.descKey, lang)}</p>
-
-          <div className="flex items-center gap-2 mt-1.5 text-xs font-semibold">
-            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border ${th.header} ${th.accent2}`}>
-              <ChevronsDown size={12} className="rotate-180" />
-              {weather.daily[0]?.tempMax ?? weather.current.temperature}°
-            </span>
-            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border ${th.header} ${th.textMuted}`}>
-              <ChevronsDown size={12} />
-              {weather.daily[0]?.tempMin ?? weather.current.apparentTemperature}°
-            </span>
+          <div className={`mt-3 w-full px-4 py-2.5 rounded-full border ${th.prayerActive} flex items-center justify-center gap-2 shadow-lg`}>
+            <span className="text-xs font-semibold uppercase tracking-wide opacity-80">{t("wxFeelsLike", lang)}</span>
+            <span className="text-base font-mono font-extrabold">{weather.current.apparentTemperature}°</span>
           </div>
 
-          <div className={`mt-4 w-full p-4 rounded-2xl border-2 ${th.prayerActive} flex items-center justify-center gap-2 shadow-lg`}>
-            <span className="text-sm font-semibold uppercase tracking-wide opacity-80">{t("wxFeelsLike", lang)}</span>
-            <span className="text-xl font-mono font-extrabold">{weather.current.apparentTemperature}°</span>
-          </div>
-
-          <div className={`w-full border-t pt-4 mt-5 grid grid-cols-3 gap-2 text-xs ${th.header}`}>
+          <div className={`w-full border-t pt-4 mt-4 grid grid-cols-3 gap-2 text-xs ${th.header}`}>
             <div className="flex flex-col items-center gap-1.5 min-w-0">
               <Droplets size={16} className={th.accent2} />
               <span className={`font-semibold ${th.textPrimary}`}>{weather.current.humidity}%</span>
