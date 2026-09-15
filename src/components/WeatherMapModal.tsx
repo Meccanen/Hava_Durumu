@@ -38,7 +38,7 @@ export default function WeatherMapModal({ lat, lon, th, lang, onClose }: Weather
   const overlay = useRef<L.TileLayer | null>(null);
 
   const [layer, setLayer] = useState<MapLayerType>("tmp2m");
-  const [hourOffset, setHourOffset] = useState(0); // 0 = şu anki UTC saati
+  const [hourOffset, setHourOffset] = useState(0); // 0 = şu anki UTC saati; weatherapi ~5 günlük pencere üretir
 
   // Tile URL'ini güncelle (Leaflet tile layer URL'si değişince layer'ı
   // yeniden eklemek en temiz yoldur — önce eskiyi kaldır, yenisini ekle).
@@ -50,7 +50,7 @@ export default function WeatherMapModal({ lat, lon, th, lang, onClose }: Weather
     const frame = utcFrame(hourOffset);
     const path = LAYERS.find((l) => l.type === layer)?.path ?? "tmp2m";
     const url = `https://weathermaps.weatherapi.com/${path}/tiles/${frame.date}${frame.hour}/{z}/{x}/{y}.png`;
-    overlay.current = L.tileLayer(url, { maxZoom: 19, opacity: 0.85, crossOrigin: true }).addTo(map);
+    overlay.current = L.tileLayer(url, { minZoom: 0, maxZoom: 6, opacity: 0.85, noWrap: true, crossOrigin: true }).addTo(map);
   }, [layer, hourOffset]);
 
   // Haritayı bir kez kur.
@@ -59,10 +59,13 @@ export default function WeatherMapModal({ lat, lon, th, lang, onClose }: Weather
 
     const map = L.map(mapEl.current, {
       center: [lat, lon],
-      zoom: 7,
+      zoom: 5,
+      minZoom: 0,
+      maxZoom: 6, // weatherapi tile'ları en fazla zoom 6'da üretiliyor
       attributionControl: true,
     });
     map.attributionControl.setPrefix("");
+    map.setMaxBounds([[-85.05112878, -180], [85.05112878, 180]]);
     const darkBase = L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
       { subdomains: "abcd", maxZoom: 19, attribution: "&copy; OpenStreetMap contributors &copy; CARTO" }
@@ -72,7 +75,7 @@ export default function WeatherMapModal({ lat, lon, th, lang, onClose }: Weather
     const frame = utcFrame(0);
     overlay.current = L.tileLayer(
       `https://weathermaps.weatherapi.com/${LAYERS[0].path}/tiles/${frame.date}${frame.hour}/{z}/{x}/{y}.png`,
-      { maxZoom: 19, opacity: 0.85, crossOrigin: true }
+      { minZoom: 0, maxZoom: 6, opacity: 0.85, noWrap: true, crossOrigin: true }
     ).addTo(map);
 
     return () => {
@@ -118,7 +121,7 @@ export default function WeatherMapModal({ lat, lon, th, lang, onClose }: Weather
           <div ref={mapEl} className="absolute inset-0 z-0" />
           <div className="absolute bottom-3 inset-x-3 z-[500] flex items-center justify-between gap-2 px-3 py-2 rounded-2xl border bg-black/60 backdrop-blur-xl">
             <button
-              onClick={() => setHourOffset((h) => h - 1)}
+              onClick={() => setHourOffset((h) => Math.max(h - 1, -48))}
               className={`w-10 h-10 flex items-center justify-center rounded-xl border ${th.header} ${th.accent}`}
               aria-label="previous hour"
             >
@@ -128,7 +131,7 @@ export default function WeatherMapModal({ lat, lon, th, lang, onClose }: Weather
               {utcFrame(hourOffset).date} {utcFrame(hourOffset).hour}:00 UTC
             </span>
             <button
-              onClick={() => setHourOffset((h) => h + 1)}
+              onClick={() => setHourOffset((h) => Math.min(h + 1, 120))}
               className={`w-10 h-10 flex items-center justify-center rounded-xl border ${th.header} ${th.accent}`}
               aria-label="next hour"
             >
