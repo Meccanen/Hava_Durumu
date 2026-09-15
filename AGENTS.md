@@ -39,3 +39,28 @@ KMP attribute selection devre dışı. App'e `lifecycle-process:2.6.2`, `lifecyc
   (2.8+) CSR gerektirir (KMP geri döner).
 - YAML edit'inde heredoc'u bash'e gömmeyin; önce `/tmp`'ye ayrı script dosyası (`write`) yazıp
   `python3` ile koşun. YAML'ı her zaman `yaml.safe_load` ile doğrula.
+
+## GOOGLE PLAY BILLING (ABONELİK — 15 Eyl 2026)
+
+**Amaç:** Reklamları kaldırma (banner + ödüllü kilitler) — abonelikle.
+- Aylık €0.99 / Yıllık €6.99.
+
+**Play Console ürün yapısı:**
+- Ürün: `premium` (subscription), base plan'lar: `monthly` / `yearly`.
+- Kodda sabit: `PREMIUM_PRODUCT_ID="premium"`, `MONTHLY_PLAN_ID="monthly"`, `YEARLY_PLAN_ID="yearly"`.
+
+**Plugin:** `@capgo/native-purchases@6.0.42` (Capacitor 6).
+- Manifest'i BOŞ → `com.android.vending.BILLING` izni CI'da Python ile eklenir (workflow satır ~319 civarı).
+- `restorePurchases()` → `customerInfo.activeSubscriptions` içinde `premium` aranır.
+- `purchaseProduct({ productIdentifier: 'premium', planIdentifier: 'monthly'|'yearly', productType: 'subs' })`.
+
+**UI:** Header'da Crown butonu → PremiumModal (aylık/yıllık kart + restore).
+- Premiumdurumu: `src/services/billingService.ts` — `isPremiumCached()`, `refreshPremiumStatus()`.
+- `App.tsx`: `isPremium` state; banner effect koşullu; `handleOpenDetail/Map/Share` premium'da direkt açılır.
+- `WeatherDashboard`: `mapLocked` etiketi → premium'da `premiumUnlocked` gösterilir.
+
+**Denendi/başarısız:** native-purchases ile plan başına fiyat ayrımı (Product.priceString) yapılamıyor — fallback statik €0.99/€6.99 kullanılır.
+
+**CI Notları:**
+- Web build (`npm run build`) native billing desteklemez; `isWeb()` kontrolü ile localStorage fallback.
+- test ederken: `localStorage.setItem("mhd_premium","true")` → tüm reklamlar/ kilitler açılır.

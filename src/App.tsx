@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  MapPin, ChevronsDown, Settings, Palette, CloudSun,
+  MapPin, ChevronsDown, Settings, Palette, CloudSun, Crown,
 } from "lucide-react";
 import { Location } from "./types";
 export type FontScale = "normal" | "large" | "xlarge";
@@ -11,7 +11,8 @@ import { initBackgroundTask } from "./services/backgroundTaskService";
 import { requestLocationPermission, getCurrentPosition, guessTimezone } from "./utils/locationHelper";
 import { t, detectLanguage, LangCode } from "./utils/i18n";
 import { formatHour, formatDay } from "./utils/weatherDisplay";
-import { showBannerAd, onBannerHeightChange, unlockWithRewardedInterstitial, isRewardedUnlockedThisSession } from "./services/adMobService";
+import { showBannerAd, hideBannerAd, onBannerHeightChange, unlockWithRewardedInterstitial, isRewardedUnlockedThisSession } from "./services/adMobService";
+import { isPremiumCached, refreshPremiumStatus } from "./services/billingService";
 import { shareWeatherCard } from "./services/shareService";
 import { getWeatherMapping } from "./utils/weatherHelper";
 import {
@@ -25,6 +26,7 @@ import SettingsPanel from "./components/SettingsPanel";
 import WeatherDashboard from "./components/WeatherDashboard";
 import DetailModal, { DetailKind } from "./components/DetailModal";
 import WeatherMapModal from "./components/WeatherMapModal";
+import PremiumModal from "./components/PremiumModal";
 import { LocationPrompt, NotificationPrompt, LocationErrorBanner } from "./components/Prompts";
 
 /**
@@ -133,9 +135,14 @@ export default function App() {
   }, [weather, location.latitude, location.longitude]);
 
   // ---- AdMob banner ----
-  // NOT: Şu an herkese reklam gösteriliyor. Abonelik sistemi (aylık/yıllık,
-  // reklamları kaldıran) devreye girdiğinde bu effect abonelik durumuna göre
-  // koşullu hale getirilecek.
+  // Premium abone iseniz reklam gösterilmez (banner + ödüllü kilitler).
+  const [isPremium, setIsPremium] = useState<boolean>(() => isPremiumCached());
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  // Uygulama açılışında Google Play'den abonelik durumunu doğrula (hızlı
+  // ilk render önbellekten, kesin durum restore ile gelir).
+  useEffect(() => {
+    refreshPremiumStatus().then(setIsPremium);
+  }, []);
   const [bannerHeight, setBannerHeight] = useState(0);
 
   // ---- Ödüllü reklamla açılan detay ekranları (UV / Hava Kalitesi / Ay Evresi / Uyarı / Gün / Saat) ----
@@ -148,6 +155,7 @@ export default function App() {
     const unlockKey = kind === "day" || kind === "hour" ? `${kind}-${index ?? 0}` : kind;
     if (kind === "day" && index !== undefined) setDetailDayIndex(index);
     if (kind === "hour" && index !== undefined) setDetailHourIndex(index);
+    if (isPremium) { setDetailModal(kind); return; }
     if (isRewardedUnlockedThisSession()) { setDetailModal(kind); return; }
     setUnlockingDetail(unlockKey);
     const granted = await unlockWithRewardedInterstitial();
@@ -165,6 +173,7 @@ export default function App() {
 
   const handleOpenMap = async () => {
     if (showMap || mapUnlocking) return;
+    if (isPremium) { setShowMap(true); return; }
     if (isRewardedUnlockedThisSession()) { setShowMap(true); return; }
     setMapUnlocking(true);
     const granted = await unlockWithRewardedInterstitial();
@@ -175,8 +184,10 @@ export default function App() {
   const handleShare = async () => {
     if (!weather || sharing) return;
     setSharing(true);
-    const granted = await unlockWithRewardedInterstitial();
-    if (!granted) { setSharing(false); return; }
+    if (!isPremium) {
+      const granted = await unlockWithRewardedInterstitial();
+      if (!granted) { setSharing(false); return; }
+    }
 
     // decode kilit açıldıktan sonra PNG üret — spinner bir kare görünmesin
     // diye kısa bir bekleme.
@@ -217,10 +228,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (isPremium) {
+      hideBannerAd();
+      setBannerHeight(0);
+      return;
+    }
     showBannerAd();
     const unsubscribe = onBannerHeightChange(setBannerHeight);
-    return unsubscribe;
-  }, []);
+    return () => { unsubscribe(); hideBannerAd(); };
+  }, [isPremium]);
 
   // ---- Konum tespiti (namaz vaktindeki mantıkla birebir) ----
   const detectAndUpdateLocation = async () => {
@@ -447,6 +463,10 @@ export default function App() {
                   <MapPin size={20} className="shrink-0" /><span className="truncate">{location.name}</span>
                 </button>
               )}
+              <button onClick={() => setShowPremiumModal(true)} title={t("premiumTitle", lang)}
+                className={`w-[48px] h-[48px] flex items-center justify-center border rounded-full transition-all cursor-pointer shrink-0 ${hdrBtnBg} ${th.accent}`}>
+                <Crown size={24} />
+              </button>
               <button onClick={() => { setSettingsTab("tema"); setShowSettings(true); }}
                 className={`w-[48px] h-[48px] flex items-center justify-center border rounded-full transition-all cursor-pointer shrink-0 ${hdrBtnBg} ${hdrBtnText}`}>
                 <Settings size={24} />
@@ -521,6 +541,7 @@ export default function App() {
             th={th}
             lang={lang}
             isLightTheme={isLight(themeKey)}
+            isPremium={isPremium}
             locationName={location.name}
             formatHour={fmtHour}
             formatDay={fmtDay}
@@ -549,6 +570,16 @@ export default function App() {
           th={th} lang={lang}
           onDenied={handleNotifDenied}
           onAllowed={handleNotifAllowed}
+        />
+      )}
+
+      {showPremiumModal && (
+        <PremiumModal
+          isPremium={isPremium}
+          onStatusChange={setIsPremium}
+          onClose={() => setShowPremiumModal(false)}
+          th={th}
+          lang={lang}
         />
       )}
 

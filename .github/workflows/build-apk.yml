@@ -328,6 +328,18 @@ jobs:
           else:
               print(">>> AD_ID izni zaten mevcut, dokunulmadı.")
 
+          # Google Play Billing (abonelik) izni — native-purchases plugin'i
+          # kendi manifest'inde bu izni tanımlamaz; Manifest merger tarafından
+          # eklenmez, bu yüzden açıkça yazılır.
+          if "com.android.vending.BILLING" not in content:
+              billing_perm = '    <uses-permission android:name="com.android.vending.BILLING" />\n'
+              content = content.replace("</manifest>", billing_perm + "</manifest>")
+              with open(path, "w") as f:
+                  f.write(content)
+              print(">>> BILLING izni eklendi (Google Play Billing / abonelik).")
+          else:
+              print(">>> BILLING izni zaten mevcut, dokunulmadı.")
+
           # Bildirim izinleri (Namaz Vakti'nin dersleri: eksik SCHEDULE_EXACT_ALARM
           # zamanlanmış bildirimlerin sessizce hiç ateşlenmemesine sebep olabiliyor;
           # POST_NOTIFICATIONS Android 13+ için zorunlu çalışma zamanı izni;

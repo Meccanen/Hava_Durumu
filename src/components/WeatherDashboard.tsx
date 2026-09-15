@@ -18,6 +18,7 @@ interface WeatherDashboardProps {
   th: typeof THEMES[ThemeKey];
   lang: LangCode;
   isLightTheme: boolean;
+  isPremium: boolean;
   locationName: string;
   formatHour: (dt: number) => string;
   formatDay: (dt: number) => string;
@@ -31,7 +32,7 @@ interface WeatherDashboardProps {
 }
 
 export default function WeatherDashboard({
-  weather, th, lang, isLightTheme, locationName, formatHour, formatDay,
+  weather, th, lang, isLightTheme, isPremium, locationName, formatHour, formatDay,
   unlockingDetail, onOpenDetail, sharing, onShare, mapUnlocking, onOpenMap, heroRef,
 }: WeatherDashboardProps) {
   const currentMapping = useMemo(
@@ -293,7 +294,7 @@ export default function WeatherDashboard({
             {t("mapTitle", lang)}
           </span>
           <span className={`block text-[11px] font-semibold mt-1 ${th.textSecondary}`}>
-            {t("mapLocked", lang)}
+            {isPremium ? t("premiumUnlocked", lang) : t("mapLocked", lang)}
           </span>
         </span>
 
