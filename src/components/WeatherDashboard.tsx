@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import {
   AlertTriangle, ChevronsDown, Droplets, Wind, Umbrella, Gauge,
   Sunrise, Sunset, SunMedium, Leaf, Moon, Eye, Cloud, Clock, CalendarDays,
-  MapPin, Share2, Map,
+  MapPin, Share2,
 } from "lucide-react";
 import { THEMES, ThemeKey } from "../theme";
 import { getWeatherMapping } from "../utils/weatherHelper";
@@ -239,32 +239,47 @@ export default function WeatherDashboard({
         </button>
       </section>
 
-      {/* Hava haritası (radar) — ödüllü reklamla açılır */}
+      {/* Uydu Görüntüsü (hava haritası) — ödüllü reklamla açılır */}
       <button onClick={onOpenMap} disabled={mapUnlocking}
-        className={`w-full flex flex-col items-center justify-center gap-2 py-5 rounded-3xl border transition-all cursor-pointer active:scale-[0.98] relative overflow-hidden ${th.card} ${th.cardHover}`}>
+        className={`w-full flex items-center gap-4 px-5 py-4 rounded-3xl border transition-all cursor-pointer active:scale-[0.98] relative overflow-hidden ${th.card} ${th.cardHover}`}>
         {mapUnlocking && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
             <div className={`w-6 h-6 border-2 border-t-transparent rounded-full animate-spin ${th.accent}`} />
           </div>
         )}
 
-        {/* Dekoratif radar halkası — karta hareket ve "radar" hissi katar */}
-        <span className={`absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-20 ${th.prayerActive}`} />
-        <span className={`absolute -bottom-10 -left-10 w-32 h-32 rounded-full opacity-10 ${th.prayerActive}`} />
-
-        <span className={`relative flex items-center justify-center w-14 h-14 rounded-2xl ${th.prayerActive}`}>
-          <Map size={30} />
+        {/* Uydu glob'u — dönen dünya figürü */}
+        <span className="relative shrink-0 w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-sky-900 via-blue-700 to-indigo-900"
+          style={{ boxShadow: `inset -8px -8px 20px rgba(0,0,0,0.45), inset 4px 4px 12px rgba(148,197,253,0.35)` }}>
+          <svg viewBox="0 0 64 64" className="w-full h-full">
+            {/* kıtalar / karalar — dönen grup */}
+            <g className="mhd-globe-spin">
+              <path fill="rgba(52,211,153,0.85)" d="M14 20 Q20 12 30 16 Q36 22 30 28 Q22 30 16 27 Z" />
+              <path fill="rgba(52,211,153,0.75)" d="M38 24 Q46 20 52 27 Q54 36 46 40 Q40 38 37 32 Z" />
+              <path fill="rgba(52,211,153,0.8)" d="M18 42 Q26 38 34 43 Q36 51 28 54 Q20 52 17 47 Z" />
+              <path fill="rgba(52,211,153,0.7)" d="M46 44 Q52 40 57 44 Q58 51 52 54 Q47 52 45 48 Z" />
+            </g>
+            {/* boylam çizgileri — sabit, küre hissi verir */}
+            <g stroke="rgba(255,255,255,0.18)" strokeWidth="1" fill="none">
+              <ellipse cx="32" cy="32" rx="30" ry="14" />
+              <ellipse cx="32" cy="32" rx="30" ry="28" />
+              <line x1="32" y1="2" x2="32" y2="62" />
+            </g>
+          </svg>
         </span>
 
-        <span className={`relative text-lg font-extrabold tracking-wide ${th.textPrimary}`}>
-          {t("mapTitle", lang)}
-        </span>
-
-        <span className={`relative flex items-center gap-1.5 text-[11px] font-semibold ${th.textSecondary}`}>
-          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${th.header}`}>
-            <span className={`w-2 h-2 rounded-full animate-pulse bg-red-500`} />
-            {t("satelliteView", lang)}
+        <span className="relative flex-1 min-w-0 text-left">
+          <span className={`block text-xl font-extrabold tracking-wide leading-tight ${th.textPrimary}`}>
+            {t("mapTitle", lang)}
           </span>
+          <span className={`block text-[11px] font-semibold mt-1 ${th.textSecondary}`}>
+            {t("mapLocked", lang)}
+          </span>
+        </span>
+
+        <span className={`relative shrink-0 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${th.header}`}>
+          <span className={`w-2 h-2 rounded-full animate-pulse bg-red-500`} />
+          <span className={`text-[10px] font-bold uppercase tracking-wide ${th.accent}`}>LIVE</span>
         </span>
       </button>
 

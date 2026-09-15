@@ -176,3 +176,53 @@ html.font-scale-xlarge { font-size: 134%; }
 .w-light .w-flash {
   background: radial-gradient(circle at 50% 20%, rgba(51, 65, 85, 0.85), rgba(30, 58, 138, 0.4));
 }
+
+/* ============================================================================
+   WEATHER MAPS — dönen dünya ve konum pini
+   ============================================================================ */
+
+@keyframes mhdGlobeSpin {
+  to { transform: rotate(360deg); }
+}
+.mhd-globe-spin {
+  animation: mhdGlobeSpin 16s linear infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes mhdPinPulse {
+  0% { transform: scale(0.5); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.mhd-map-pin {
+  position: relative;
+  width: 26px;
+  height: 26px;
+}
+.mhd-map-pin::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: rgba(56, 189, 248, 0.55);
+  animation: mhdPinPulse 1.8s ease-out infinite;
+}
+.mhd-map-pin::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 9999px;
+  background: #0ea5e9;
+  border: 2px solid #fff;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.45);
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
+}
+/* Leaflet zoom kontrolü tema-koyu görünüm için ince beyaz çerçeve */
+.leaflet-control-zoom a {
+  color: #e2e8f0 !important;
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}

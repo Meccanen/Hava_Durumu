@@ -587,6 +587,7 @@ export default function App() {
         <WeatherMapModal
           lat={location.latitude}
           lon={location.longitude}
+          locationName={location.name}
           th={th}
           lang={lang}
           onClose={() => setShowMap(false)}
