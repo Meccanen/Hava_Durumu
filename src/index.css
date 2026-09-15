@@ -178,17 +178,8 @@ html.font-scale-xlarge { font-size: 134%; }
 }
 
 /* ============================================================================
-   WEATHER MAPS — dönen dünya ve konum pini
+   WEATHER MAPS — sade dünya figürü ve konum pini
    ============================================================================ */
-
-@keyframes mhdGlobeSpin {
-  to { transform: rotate(360deg); }
-}
-.mhd-globe-spin {
-  animation: mhdGlobeSpin 16s linear infinite;
-  transform-origin: center;
-  transform-box: fill-box;
-}
 
 @keyframes mhdPinPulse {
   0% { transform: scale(0.5); opacity: 0.9; }

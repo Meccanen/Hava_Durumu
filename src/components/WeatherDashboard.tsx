@@ -249,11 +249,10 @@ export default function WeatherDashboard({
           </div>
         )}
 
-        {/* Uydu glob'u — dönen enlem/boylam küresi */}
+        {/* Uydu glob'u — sade dünya figürü, sabit enlem/boylam çizgileri */}
         <span className="relative shrink-0 w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-sky-950 via-blue-900 to-indigo-950"
           style={{ boxShadow: `inset -8px -8px 20px rgba(0,0,0,0.5), inset 4px 4px 12px rgba(125,211,252,0.3), 0 0 18px rgba(56,189,248,0.25)` }}>
           <svg viewBox="0 0 64 64" className="w-full h-full">
-            {/* dağ parıltısı — üst atmosfer ışıması */}
             <defs>
               <radialGradient id="mhdGlobeGlow" cx="38%" cy="32%" r="70%">
                 <stop offset="0%" stopColor="rgba(186,230,253,0.35)" />
@@ -274,17 +273,6 @@ export default function WeatherDashboard({
               <ellipse cx="32" cy="32" rx="10" ry="30" />
               <ellipse cx="32" cy="32" rx="20" ry="30" />
               <ellipse cx="32" cy="32" rx="30" ry="30" />
-            </g>
-            {/* yavaşça dönen meridyen izleri — "canlı" his */}
-            <g className="mhd-globe-spin" stroke="rgba(125,211,252,0.55)" strokeWidth="1.3" fill="none" strokeDasharray="3 7">
-              <ellipse cx="32" cy="32" rx="30" ry="30" />
-              <ellipse cx="32" cy="32" rx="18" ry="30" />
-              <ellipse cx="32" cy="32" rx="6" ry="30" />
-            </g>
-            {/* kutup feneri */}
-            <g stroke="rgba(224,242,254,0.5)" strokeWidth="1" fill="none">
-              <line x1="32" y1="2" x2="32" y2="6" />
-              <line x1="32" y1="58" x2="32" y2="62" />
             </g>
           </svg>
         </span>

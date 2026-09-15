@@ -16,11 +16,11 @@ interface WeatherMapModalProps {
 
 type MapLayerType = "tmp2m" | "precip" | "pressure" | "wind";
 
-const LAYERS: { type: MapLayerType; path: string; labelKey: string }[] = [
-  { type: "tmp2m", path: "tmp2m", labelKey: "mapLayerTemp" },
-  { type: "precip", path: "precip", labelKey: "mapLayerPrecip" },
-  { type: "pressure", path: "pressure", labelKey: "mapLayerPressure" },
-  { type: "wind", path: "wind", labelKey: "mapLayerWind" },
+const LAYERS: { type: MapLayerType; path: string; labelKey: string; descKey: string }[] = [
+  { type: "tmp2m", path: "tmp2m", labelKey: "mapLayerTemp", descKey: "mapLayerTempDesc" },
+  { type: "precip", path: "precip", labelKey: "mapLayerPrecip", descKey: "mapLayerPrecipDesc" },
+  { type: "pressure", path: "pressure", labelKey: "mapLayerPressure", descKey: "mapLayerPressureDesc" },
+  { type: "wind", path: "wind", labelKey: "mapLayerWind", descKey: "mapLayerWindDesc" },
 ];
 
 // Her katmanın renk skalası (weatherapi tile renkleri) — alttaki gösterge bu
@@ -178,6 +178,15 @@ export default function WeatherMapModal({ lat, lon, locationName, th, lang, onCl
             >
               {t(l.labelKey, lang)}
             </button>
+          ))}
+        </div>
+
+        {/* Seçili katmanın açıklaması — neyi gösterdiğini anında netleştirir */}
+        <div className="px-4 pb-3 -mt-1">
+          {LAYERS.filter((l) => l.type === layer).map((l) => (
+            <p key={l.type} className={`text-xs leading-relaxed ${th.textSecondary}`}>
+              {t(l.descKey, lang)}
+            </p>
           ))}
         </div>
 
