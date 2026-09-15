@@ -239,6 +239,35 @@ export default function WeatherDashboard({
         </button>
       </section>
 
+      {/* Hava haritası (radar) — ödüllü reklamla açılır */}
+      <button onClick={onOpenMap} disabled={mapUnlocking}
+        className={`w-full flex flex-col items-center justify-center gap-2 py-5 rounded-3xl border transition-all cursor-pointer active:scale-[0.98] relative overflow-hidden ${th.card} ${th.cardHover}`}>
+        {mapUnlocking && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
+            <div className={`w-6 h-6 border-2 border-t-transparent rounded-full animate-spin ${th.accent}`} />
+          </div>
+        )}
+
+        {/* Dekoratif radar halkası — karta hareket ve "radar" hissi katar */}
+        <span className={`absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-20 ${th.prayerActive}`} />
+        <span className={`absolute -bottom-10 -left-10 w-32 h-32 rounded-full opacity-10 ${th.prayerActive}`} />
+
+        <span className={`relative flex items-center justify-center w-14 h-14 rounded-2xl ${th.prayerActive}`}>
+          <Map size={30} />
+        </span>
+
+        <span className={`relative text-lg font-extrabold tracking-wide ${th.textPrimary}`}>
+          {t("mapTitle", lang)}
+        </span>
+
+        <span className={`relative flex items-center gap-1.5 text-[11px] font-semibold ${th.textSecondary}`}>
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${th.header}`}>
+            <span className={`w-2 h-2 rounded-full animate-pulse bg-red-500`} />
+            {t("satelliteView", lang)}
+          </span>
+        </span>
+      </button>
+
       {/* Saatlik tahmin */}
       <section>
         <div className="flex items-center gap-1.5 mb-2.5 px-1">
@@ -292,21 +321,6 @@ export default function WeatherDashboard({
           })}
         </div>
       </section>
-
-      {/* Hava haritası (radar) — ödüllü reklamla açılır */}
-      <button onClick={onOpenMap} disabled={mapUnlocking}
-        className={`w-full flex items-center justify-center gap-2.5 py-4 rounded-3xl border transition-all cursor-pointer active:scale-[0.98] relative overflow-hidden ${th.card} ${th.cardHover}`}>
-        {mapUnlocking && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-            <div className={`w-5 h-5 border-2 border-t-transparent rounded-full animate-spin ${th.accent}`} />
-          </div>
-        )}
-        <Map size={20} className={th.accent} />
-        <span className={`text-sm font-bold ${th.textPrimary}`}>{t("mapTitle", lang)}</span>
-        <span className={`text-[10px] font-semibold rounded-full border px-2 py-0.5 ${th.header} ${th.textMuted}`}>
-          {t("mapLocked", lang)}
-        </span>
-      </button>
 
       {/* Günlük tahmin */}
       <section className={`${th.card} border rounded-3xl overflow-hidden shadow-xl`}>
