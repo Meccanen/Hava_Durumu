@@ -25,7 +25,7 @@ const LAYERS: { type: MapLayerType; path: string; labelKey: string; descKey: str
 
 // Her katmanın renk skalası (weatherapi tile renkleri) — alttaki gösterge bu
 // renkleri "düşük → yüksek" olarak açıklar.
-const LEGENDS: Record<MapLayerType, { stops: string[]; low: string; high: string }> = {
+const LEGENDS: Record<MapLayerType, { stops: string[]; low: string | null; high: string | null }> = {
   tmp2m: {
     stops: ["#1e3a8a", "#2563eb", "#0ea5e9", "#22c55e", "#facc15", "#f97316", "#dc2626", "#7c2d12"],
     low: "-40°",
@@ -38,8 +38,10 @@ const LEGENDS: Record<MapLayerType, { stops: string[]; low: string; high: string
   },
   pressure: {
     stops: ["#3b0764", "#4338ca", "#2563eb", "#22c55e", "#facc15", "#f97316", "#dc2626"],
-    low: "Düşük",
-    high: "Yüksek",
+    // Alçak/yüksek basınç sözel olduğu için birim değil — dil değişince
+    // çevrilmesi gerekiyor; render'da mapScaleLow/mapScaleHigh i18n'den.
+    low: null,
+    high: null,
   },
   wind: {
     stops: ["#334155", "#0ea5e9", "#22c55e", "#facc15", "#f97316", "#ef4444", "#7c2d12"],
@@ -47,6 +49,12 @@ const LEGENDS: Record<MapLayerType, { stops: string[]; low: string; high: string
     high: "120+ km/h",
   },
 };
+
+// Zemin haritası (isimli) — Esri World Street Map. Key gerektirmez, ticari
+// kullanıma açık, CARTO'daki "API KEY REQUIRED" filigranına sahip değildir.
+// Attribution (Osd) zorunludur — Leaflet'in attribution alanından gösterilir.
+const BASE_TILES =
+  "https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
 
 // UTC saat diliminden "yyyymmdd" + "hh" üretir (weatherapi tile path formatı).
 function utcFrame(hourOffset: number): { date: string; hour: string } {
@@ -88,11 +96,12 @@ export default function WeatherMapModal({ lat, lon, locationName, th, lang, onCl
     });
     map.attributionControl.setPrefix("");
     map.setMaxBounds([[-85.05112878, -180], [85.05112878, 180]]);
-    const darkBase = L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-      { subdomains: "abcd", maxZoom: 19, attribution: "&copy; OpenStreetMap contributors &copy; CARTO" }
-    ).addTo(map);
     leafletMap.current = map;
+
+    const darkBase = L.tileLayer(
+      BASE_TILES,
+      { maxZoom: 19, attribution: "&copy; Esri, &copy; OpenStreetMap contributors" }
+    ).addTo(map);
 
     const frame = utcFrame(0);
     overlay.current = L.tileLayer(
@@ -169,12 +178,12 @@ export default function WeatherMapModal({ lat, lon, locationName, th, lang, onCl
           </button>
         </div>
 
-        <div className="grid grid-cols-4 gap-2 px-4 py-3 border-b">
+        <div className="grid grid-cols-2 gap-2 px-4 py-3 border-b">
           {LAYERS.map((l) => (
             <button
               key={l.type}
               onClick={() => setLayer(l.type)}
-              className={`px-2 py-2 rounded-xl border text-xs font-semibold transition-all text-center ${layer === l.type ? `${th.accent} border-current ${th.header}` : `border-transparent ${th.textSecondary}`}`}
+              className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border transition-all cursor-pointer text-center leading-tight ${layer === l.type ? `${th.accent} border-current ${th.header} font-bold shadow-sm` : `border-transparent ${th.textSecondary}`}`}
             >
               {t(l.labelKey, lang)}
             </button>
@@ -216,8 +225,12 @@ export default function WeatherMapModal({ lat, lon, locationName, th, lang, onCl
               </span>
             </div>
             <div className="flex items-center justify-between mt-1">
-              <span className="text-[10px] font-mono text-white/80">{LEGENDS[layer].low}</span>
-              <span className="text-[10px] font-mono text-white/80">{LEGENDS[layer].high}</span>
+              <span className="text-[10px] font-mono text-white/80">
+                {LEGENDS[layer].low ?? t("mapScaleLow", lang)}
+              </span>
+              <span className="text-[10px] font-mono text-white/80">
+                {LEGENDS[layer].high ?? t("mapScaleHigh", lang)}
+              </span>
             </div>
           </div>
 
