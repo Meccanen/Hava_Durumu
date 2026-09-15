@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import {
   AlertTriangle, ChevronsDown, Droplets, Wind, Umbrella, Gauge,
   Sunrise, Sunset, SunMedium, Leaf, Moon, Eye, Cloud, Clock, CalendarDays,
-  MapPin, Share2,
+  MapPin, Share2, Map,
 } from "lucide-react";
 import { THEMES, ThemeKey } from "../theme";
 import { getWeatherMapping } from "../utils/weatherHelper";
@@ -25,12 +25,14 @@ interface WeatherDashboardProps {
   onOpenDetail: (kind: DetailKind, dayIndex?: number) => void;
   sharing: boolean;
   onShare: () => void;
+  mapUnlocking: boolean;
+  onOpenMap: () => void;
   heroRef: RefObject<HTMLElement | null>;
 }
 
 export default function WeatherDashboard({
   weather, th, lang, isLightTheme, locationName, formatHour, formatDay,
-  unlockingDetail, onOpenDetail, sharing, onShare, heroRef,
+  unlockingDetail, onOpenDetail, sharing, onShare, mapUnlocking, onOpenMap, heroRef,
 }: WeatherDashboardProps) {
   const currentMapping = useMemo(
     () => getWeatherMapping(weather.current.weatherCode, weather.current.isDay),
@@ -290,6 +292,21 @@ export default function WeatherDashboard({
           })}
         </div>
       </section>
+
+      {/* Hava haritası (radar) — ödüllü reklamla açılır */}
+      <button onClick={onOpenMap} disabled={mapUnlocking}
+        className={`w-full flex items-center justify-center gap-2.5 py-4 rounded-3xl border transition-all cursor-pointer active:scale-[0.98] relative overflow-hidden ${th.card} ${th.cardHover}`}>
+        {mapUnlocking && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+            <div className={`w-5 h-5 border-2 border-t-transparent rounded-full animate-spin ${th.accent}`} />
+          </div>
+        )}
+        <Map size={20} className={th.accent} />
+        <span className={`text-sm font-bold ${th.textPrimary}`}>{t("mapTitle", lang)}</span>
+        <span className={`text-[10px] font-semibold rounded-full border px-2 py-0.5 ${th.header} ${th.textMuted}`}>
+          {t("mapLocked", lang)}
+        </span>
+      </button>
 
       {/* Günlük tahmin */}
       <section className={`${th.card} border rounded-3xl overflow-hidden shadow-xl`}>

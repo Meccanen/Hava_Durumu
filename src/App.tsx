@@ -24,6 +24,7 @@ import type { WeatherBundle } from "./types";
 import SettingsPanel from "./components/SettingsPanel";
 import WeatherDashboard from "./components/WeatherDashboard";
 import DetailModal, { DetailKind } from "./components/DetailModal";
+import WeatherMapModal from "./components/WeatherMapModal";
 import { LocationPrompt, NotificationPrompt, LocationErrorBanner } from "./components/Prompts";
 
 /**
@@ -157,6 +158,19 @@ export default function App() {
   // ---- Hero kartı paylaşımı (WhatsApp/Instagram vb. — ödüllü reklam karşılığında) ----
   const [sharing, setSharing] = useState(false);
   const heroRef = useRef<HTMLElement | null>(null);
+
+  // ---- Weather Maps (radar) — ödüllü reklamla açılır ----
+  const [showMap, setShowMap] = useState(false);
+  const [mapUnlocking, setMapUnlocking] = useState(false);
+
+  const handleOpenMap = async () => {
+    if (showMap || mapUnlocking) return;
+    if (isRewardedUnlockedThisSession()) { setShowMap(true); return; }
+    setMapUnlocking(true);
+    const granted = await unlockWithRewardedInterstitial();
+    setMapUnlocking(false);
+    if (granted) setShowMap(true);
+  };
 
   const handleShare = async () => {
     if (!weather || sharing) return;
@@ -514,6 +528,8 @@ export default function App() {
             onOpenDetail={handleOpenDetail}
             sharing={sharing}
             onShare={handleShare}
+            mapUnlocking={mapUnlocking}
+            onOpenMap={handleOpenMap}
             heroRef={heroRef}
           />
         )}
@@ -564,6 +580,16 @@ export default function App() {
           lang={lang}
           formatHour={fmtHour}
           formatDay={fmtDay}
+        />
+      )}
+
+      {showMap && (
+        <WeatherMapModal
+          lat={location.latitude}
+          lon={location.longitude}
+          th={th}
+          lang={lang}
+          onClose={() => setShowMap(false)}
         />
       )}
     </div>
