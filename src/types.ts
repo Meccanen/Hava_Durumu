@@ -91,7 +91,7 @@ export interface DailyForecast {
 export interface WeatherBundle {
   current: CurrentWeather;
   hourly: HourlyForecast[]; // önümüzdeki 24 saat (ana sayfa)
-  daily: DailyForecast[];   // günlük özet (şu an ücretsiz katmanda 3 gün)
+  daily: DailyForecast[];   // günlük özet (7 gün — API planı kadar)
   dailyHourly: HourlyForecast[][]; // her gün için TAM 24 saatlik döküm (daily.length ile aynı sırada)
   airQuality: AirQuality | null;
   astronomy: Astronomy | null;

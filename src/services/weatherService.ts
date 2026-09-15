@@ -11,14 +11,12 @@ import type {
  * astronomi + hava kalitesi + uyarılar + UV indeksini tek çağrıda çeker.
  * https://www.weatherapi.com/pricing.aspx
  *
- * ÖNEMLİ: Şu an ÜCRETSİZ (Free) katman kullanılıyor — test aşamasındayız.
- * Free katman kısıtları: 3 günlük tahmin, "limited" hava kalitesi/uyarı verisi,
- * 100K çağrı/ay. Üretime (gerçek kullanıcı trafiğine) geçmeden önce Starter
- * plana ($7/ay, 3M çağrı, 7 günlük tahmin) yükseltilmeli — bu durumda sadece
- * FORECAST_DAYS sabiti 7'ye çekilecek, başka kod değişikliği gerekmez.
+ * ÖNEMLİ: PROD'da 7 günlük tahmin için WeatherAPI Starter plan üzerinde
+ * çalışılmalı (Free katman yalnızca 3 gün verir — days=7 istese bile 3 döner).
+ * FORECAST_DAYS sabiti 7'dir; API key Starter plana aitse otomatik 7 gün gelir.
  */
 const BASE_URL = "https://api.weatherapi.com/v1/forecast.json";
-const FORECAST_DAYS = 3; // Starter'a geçince: 7
+const FORECAST_DAYS = 7;
 const HOURLY_WINDOW = 24; // Ana sayfa saatlik şeridi — sadece önümüzdeki 24 saat
 
 /**
