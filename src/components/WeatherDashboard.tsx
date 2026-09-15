@@ -248,22 +248,42 @@ export default function WeatherDashboard({
           </div>
         )}
 
-        {/* Uydu glob'u — dönen dünya figürü */}
-        <span className="relative shrink-0 w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-sky-900 via-blue-700 to-indigo-900"
-          style={{ boxShadow: `inset -8px -8px 20px rgba(0,0,0,0.45), inset 4px 4px 12px rgba(148,197,253,0.35)` }}>
+        {/* Uydu glob'u — dönen enlem/boylam küresi */}
+        <span className="relative shrink-0 w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-sky-950 via-blue-900 to-indigo-950"
+          style={{ boxShadow: `inset -8px -8px 20px rgba(0,0,0,0.5), inset 4px 4px 12px rgba(125,211,252,0.3), 0 0 18px rgba(56,189,248,0.25)` }}>
           <svg viewBox="0 0 64 64" className="w-full h-full">
-            {/* kıtalar / karalar — dönen grup */}
-            <g className="mhd-globe-spin">
-              <path fill="rgba(52,211,153,0.85)" d="M14 20 Q20 12 30 16 Q36 22 30 28 Q22 30 16 27 Z" />
-              <path fill="rgba(52,211,153,0.75)" d="M38 24 Q46 20 52 27 Q54 36 46 40 Q40 38 37 32 Z" />
-              <path fill="rgba(52,211,153,0.8)" d="M18 42 Q26 38 34 43 Q36 51 28 54 Q20 52 17 47 Z" />
-              <path fill="rgba(52,211,153,0.7)" d="M46 44 Q52 40 57 44 Q58 51 52 54 Q47 52 45 48 Z" />
+            {/* dağ parıltısı — üst atmosfer ışıması */}
+            <defs>
+              <radialGradient id="mhdGlobeGlow" cx="38%" cy="32%" r="70%">
+                <stop offset="0%" stopColor="rgba(186,230,253,0.35)" />
+                <stop offset="55%" stopColor="rgba(37,99,235,0.12)" />
+                <stop offset="100%" stopColor="rgba(2,6,23,0.25)" />
+              </radialGradient>
+            </defs>
+            <circle cx="32" cy="32" r="30" fill="url(#mhdGlobeGlow)" />
+
+            {/* sabit enlem çizgileri */}
+            <g stroke="rgba(165,205,255,0.45)" strokeWidth="1.1" fill="none">
+              <line x1="3" y1="22" x2="61" y2="22" />
+              <line x1="3" y1="32" x2="61" y2="32" />
+              <line x1="3" y1="42" x2="61" y2="42" />
             </g>
-            {/* boylam çizgileri — sabit, küre hissi verir */}
-            <g stroke="rgba(255,255,255,0.18)" strokeWidth="1" fill="none">
-              <ellipse cx="32" cy="32" rx="30" ry="14" />
-              <ellipse cx="32" cy="32" rx="30" ry="28" />
-              <line x1="32" y1="2" x2="32" y2="62" />
+            {/* sabit boylam elipsleri */}
+            <g stroke="rgba(165,205,255,0.4)" strokeWidth="1.1" fill="none">
+              <ellipse cx="32" cy="32" rx="10" ry="30" />
+              <ellipse cx="32" cy="32" rx="20" ry="30" />
+              <ellipse cx="32" cy="32" rx="30" ry="30" />
+            </g>
+            {/* yavaşça dönen meridyen izleri — "canlı" his */}
+            <g className="mhd-globe-spin" stroke="rgba(125,211,252,0.55)" strokeWidth="1.3" fill="none" strokeDasharray="3 7">
+              <ellipse cx="32" cy="32" rx="30" ry="30" />
+              <ellipse cx="32" cy="32" rx="18" ry="30" />
+              <ellipse cx="32" cy="32" rx="6" ry="30" />
+            </g>
+            {/* kutup feneri */}
+            <g stroke="rgba(224,242,254,0.5)" strokeWidth="1" fill="none">
+              <line x1="32" y1="2" x2="32" y2="6" />
+              <line x1="32" y1="58" x2="32" y2="62" />
             </g>
           </svg>
         </span>

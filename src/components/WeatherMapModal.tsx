@@ -23,6 +23,31 @@ const LAYERS: { type: MapLayerType; path: string; labelKey: string }[] = [
   { type: "wind", path: "wind", labelKey: "mapLayerWind" },
 ];
 
+// Her katmanın renk skalası (weatherapi tile renkleri) — alttaki gösterge bu
+// renkleri "düşük → yüksek" olarak açıklar.
+const LEGENDS: Record<MapLayerType, { stops: string[]; low: string; high: string }> = {
+  tmp2m: {
+    stops: ["#1e3a8a", "#2563eb", "#0ea5e9", "#22c55e", "#facc15", "#f97316", "#dc2626", "#7c2d12"],
+    low: "-40°",
+    high: "+40°",
+  },
+  precip: {
+    stops: ["rgba(255,255,255,0.05)", "#93c5fd", "#22c55e", "#facc15", "#f97316", "#ef4444", "#a21caf"],
+    low: "0 mm/h",
+    high: "20+ mm/h",
+  },
+  pressure: {
+    stops: ["#3b0764", "#4338ca", "#2563eb", "#22c55e", "#facc15", "#f97316", "#dc2626"],
+    low: "Düşük",
+    high: "Yüksek",
+  },
+  wind: {
+    stops: ["#334155", "#0ea5e9", "#22c55e", "#facc15", "#f97316", "#ef4444", "#7c2d12"],
+    low: "0 km/h",
+    high: "120+ km/h",
+  },
+};
+
 // UTC saat diliminden "yyyymmdd" + "hh" üretir (weatherapi tile path formatı).
 function utcFrame(hourOffset: number): { date: string; hour: string } {
   const d = new Date(Date.now() + hourOffset * 3600 * 1000);
@@ -45,6 +70,11 @@ export default function WeatherMapModal({ lat, lon, locationName, th, lang, onCl
   const [viewLon, setViewLon] = useState(lon);
   const [viewZoom, setViewZoom] = useState(5);
 
+  // weatherapi tile'ları kendi API key'imizle çekilir (ücretsiz demo CDN değil).
+  const apiKey = import.meta.env.VITE_WEATHER_API_KEY as string;
+  const wTile = (path: string, frame: { date: string; hour: string }) =>
+    `https://weathermaps.weatherapi.com/${path}/tiles/${frame.date}${frame.hour}/{z}/{x}/{y}.png${apiKey ? `?key=${apiKey}` : ""}`;
+
   // Harita bir kez kur + konum pini + hareket/zoom okuyucu.
   useEffect(() => {
     if (!mapEl.current || leafletMap.current) return;
@@ -59,15 +89,15 @@ export default function WeatherMapModal({ lat, lon, locationName, th, lang, onCl
     map.attributionControl.setPrefix("");
     map.setMaxBounds([[-85.05112878, -180], [85.05112878, 180]]);
     const darkBase = L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
       { subdomains: "abcd", maxZoom: 19, attribution: "&copy; OpenStreetMap contributors &copy; CARTO" }
     ).addTo(map);
     leafletMap.current = map;
 
     const frame = utcFrame(0);
     overlay.current = L.tileLayer(
-      `https://weathermaps.weatherapi.com/${LAYERS[0].path}/tiles/${frame.date}${frame.hour}/{z}/{x}/{y}.png`,
-      { minZoom: 0, maxZoom: 6, opacity: 0.85, noWrap: true, crossOrigin: true }
+      wTile(LAYERS[0].path, frame),
+      { minZoom: 0, maxZoom: 6, opacity: 0.72, noWrap: true, crossOrigin: true }
     ).addTo(map);
 
     // Konum pini — puls eden CSS ikonu (index.css'te .mhd-map-pin).
@@ -111,8 +141,8 @@ export default function WeatherMapModal({ lat, lon, locationName, th, lang, onCl
 
     const frame = utcFrame(hourOffset);
     const path = LAYERS.find((l) => l.type === layer)?.path ?? "tmp2m";
-    const url = `https://weathermaps.weatherapi.com/${path}/tiles/${frame.date}${frame.hour}/{z}/{x}/{y}.png`;
-    overlay.current = L.tileLayer(url, { minZoom: 0, maxZoom: 6, opacity: 0.85, noWrap: true, crossOrigin: true }).addTo(map);
+    const url = wTile(path, frame);
+    overlay.current = L.tileLayer(url, { minZoom: 0, maxZoom: 6, opacity: 0.72, noWrap: true, crossOrigin: true }).addTo(map);
   }, [layer, hourOffset]);
 
   return (
@@ -160,6 +190,26 @@ export default function WeatherMapModal({ lat, lon, locationName, th, lang, onCl
             <span className={`text-[11px] font-mono tracking-tight ${th.textPrimary}`}>
               {Math.abs(viewLat).toFixed(2)}°{viewLat >= 0 ? "N" : "S"} · {Math.abs(viewLon).toFixed(2)}°{viewLon >= 0 ? "E" : "W"} · Z{viewZoom}
             </span>
+          </div>
+
+          {/* Renk göstergesi — gördüğün rengin anlamı */}
+          <div className="absolute bottom-24 left-3 z-[500] px-3 py-2 rounded-xl border bg-black/70 backdrop-blur-xl">
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] font-semibold ${th.textSecondary}`}>
+                {t("mapScaleLow", lang)}
+              </span>
+              <div
+                className="w-32 h-2.5 rounded-full border border-white/15"
+                style={{ background: `linear-gradient(to right, ${LEGENDS[layer].stops.join(", ")})` }}
+              />
+              <span className={`text-[10px] font-semibold ${th.textSecondary}`}>
+                {t("mapScaleHigh", lang)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-[10px] font-mono text-white/80">{LEGENDS[layer].low}</span>
+              <span className="text-[10px] font-mono text-white/80">{LEGENDS[layer].high}</span>
+            </div>
           </div>
 
           {/* Konuma dön */}
