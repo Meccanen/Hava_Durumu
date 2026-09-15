@@ -88,7 +88,7 @@ async function executeWeatherRefresh(): Promise<boolean> {
       notifDailyEnabled: localStorage.getItem('mhd_notif_daily_enabled') === 'true',
       notifTime: localStorage.getItem('mhd_notif_time') || '08:00',
       notifChangeAlertEnabled: localStorage.getItem('mhd_notif_change_enabled') === 'true',
-      lang: (localStorage.getItem('mhd_lang') as LangCode) || 'tr',
+      lang: (localStorage.getItem('mhd_lang') as LangCode) || 'en',
       locationName: location?.name as string | undefined,
     });
 

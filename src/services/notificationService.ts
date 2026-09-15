@@ -63,7 +63,7 @@ let channelsCreated = false;
  * Kanal adları oluşturma anındaki dile göre sabitlenir (OS tarafından
  * cache'lenir); kanal oluşturma bir kez yapılır (channelsCreated guard).
  */
-export async function ensureNotificationChannels(lang: LangCode = "tr"): Promise<void> {
+export async function ensureNotificationChannels(lang: LangCode = "en"): Promise<void> {
   if (channelsCreated || !Capacitor.isNativePlatform()) return;
   channelsCreated = true;
   try {

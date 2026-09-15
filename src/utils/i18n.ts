@@ -1018,8 +1018,8 @@ const LANG_MAP: Record<string, LangCode> = {
 };
 
 export function detectLanguage(): LangCode {
-  const raw = navigator.language || "tr";
-  return LANG_MAP[raw] || LANG_MAP[raw.slice(0, 2)] || "tr";
+  const raw = navigator.language || "en";
+  return LANG_MAP[raw] || LANG_MAP[raw.slice(0, 2)] || "en";
 }
 
 const FALLBACK: Record<string, LangCode> = { tr: "en", en: "tr", ar: "en", de: "en", ur: "en" };

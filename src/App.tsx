@@ -455,7 +455,7 @@ export default function App() {
                 Aa
               </button>
               <button onClick={() => {
-                  const order: LangCode[] = ["tr", "en", "ar", "de", "ur"];
+                  const order: LangCode[] = ["en", "tr", "ar", "de", "ur"];
                   const next = order[(order.indexOf(lang) + 1) % order.length];
                   setLang(next);
                 }}
